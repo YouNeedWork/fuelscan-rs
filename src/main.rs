@@ -2,28 +2,21 @@ use std::str::FromStr;
 
 use fuel_core_client::client::FuelClient;
 
+mod block_read;
+use block_read::BlockReader;
+
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
+    let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
+
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
-    let block = client
-        .block_by_height(1418542)
-        .await
-        .expect("failed to get chain info")
-        .unwrap();
+    let mut block_read = BlockReader::new(client, shutdown_tx.subscribe());
+    tokio::spawn(async move { block_read.start().await });
 
-    println!("{:?}", block.header.height);
-    for tx in block.transactions {
-        let full_tx = client
-            .transaction(&tx.id.to_string())
-            .await
-            .expect("failed to get tx")
-            .unwrap();
-
-        dbg!(full_tx);
-        //println!("{:?}", full_tx);
-    }
-
-    println!("Hello, world!");
+    tokio::signal::ctrl_c().await.unwrap();
+    println!("🎩 Ctrl-C received, shutting down");
+    shutdown_tx.send(()).unwrap();
 }

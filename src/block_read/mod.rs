@@ -106,8 +106,11 @@ impl BlockReader {
         let txs = block
             .transactions
             .iter()
-            .map(|tx_hash| {
-                let feat = client.transaction(tx_hash.id.clone());
+            .map(|tx_hash| async move {
+                let feat = client
+                    .transaction(&tx_hash.id.to_string())
+                    .await
+                    .map_err(|e| BlockReaderError::ReadFromRpcError(e.to_string()));
 
                 feat
             })

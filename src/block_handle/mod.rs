@@ -268,13 +268,14 @@ impl BlockHandler {
 
             let byte_code_indexer = create.bytecode_witness_index();
             dbg!(&byte_code_indexer);
-            /* create.witnesses().clone().into_iter().for_each(|w| {
-                dbg!(hex::encode(w.as_vec()));
-            }); */
-            dbg!(hash);
-
-            //dbg!(&create);
-            /*             if create.witnesses().len() > 1 {
+            let witnesses = create.witnesses().clone();
+            let bytecode = witnesses[*byte_code_indexer as usize].as_vec();
+            let bytecode: AttributeValue = AttributeValue {
+                b: Some(bytecode.clone().into()),
+                ..Default::default()
+            };
+            item.insert("bytecode".into(), bytecode);
+            /* create.witnesses().len() > 1 {
                 let a = &create.witnesses()[1];
                 dbg!(a);
                 //dbg!(format!("{:x}", a.data));
@@ -307,6 +308,7 @@ impl BlockHandler {
                     _ => {}
                 }
             }
+
             let output = serde_json::to_string(mint.outputs())
                 .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
             let output: AttributeValue = AttributeValue {
@@ -320,7 +322,7 @@ impl BlockHandler {
         } else if tx.transaction.is_script() {
             //transfer or contract call
             let script = tx.transaction.as_script().unwrap();
-            //dbg!(&script);
+
             let transaction_type = AttributeValue {
                 s: Some("script".into()),
                 ..Default::default()
@@ -410,6 +412,12 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("output".into(), output);
+            let bytecode = script.script_data();
+            let bytecode: AttributeValue = AttributeValue {
+                b: Some(bytecode.clone().into()),
+                ..Default::default()
+            };
+            item.insert("bytecode".into(), bytecode);
         } else {
             unimplemented!();
         }

@@ -239,6 +239,7 @@ dependencies = [
  "fuel-core-client",
  "fuel-core-types",
  "futures",
+ "hex",
  "rusoto_core",
  "rusoto_dynamodb",
  "rusoto_s3",

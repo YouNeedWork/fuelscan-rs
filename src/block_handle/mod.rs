@@ -3,13 +3,8 @@ use fuel_core_types::fuel_tx::field::*;
 use std::collections::HashMap;
 use thiserror::Error;
 
-use fuel_core_client::client::{
-    schema::{block::Header, schema::__fields::ContractBalanceConnection},
-    types::TransactionResponse,
-};
-use rusoto_dynamodb::{
-    AttributeValue, AttributeValueUpdate, DynamoDb, DynamoDbClient, PutItemInput, UpdateItemInput,
-};
+use fuel_core_client::client::{schema::block::Header, types::TransactionResponse};
+use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput, UpdateItemInput};
 use tokio::{
     select,
     sync::{broadcast, mpsc},
@@ -34,6 +29,8 @@ pub enum BlockHandlerError {
     InsertUpdateCheckPointError(String),
     #[error("failed to insert into db: {0}")]
     InsertDbError(String),
+    #[error("failed to serialize json: {0}")]
+    SerdeJsonError(String),
 }
 
 impl BlockHandler {
@@ -131,17 +128,17 @@ impl BlockHandler {
         let mut item: HashMap<String, AttributeValue> = HashMap::new();
 
         let id = AttributeValue {
-            s: Some(hash),
+            s: Some(hash.clone()),
             ..Default::default()
         };
         item.insert("id".into(), id);
 
-        let tx_json = tx.transaction.to_json();
+        /* let tx_json = tx.transaction.to_json();
         let transaction: AttributeValue = AttributeValue {
-            s: Some(tx_json),
+            s: Some(""),
             ..Default::default()
         };
-        item.insert("transaction".into(), transaction);
+        item.insert("transaction".into(), transaction); */
 
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -190,9 +187,101 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("gas_limit".into(), gas_limit);
+            /*             let nonce = AttributeValue {
+                n: Some(format!("{}", create.)),
+                ..Default::default()
+            }; */
 
-        /*             create.inputs();
-        create.outputs(); */
+            //let input = create.inputs();
+            for input in create.inputs() {
+                match input {
+                    fuel_core_types::fuel_tx::Input::CoinSigned {
+                        utxo_id,
+                        owner,
+                        amount,
+                        asset_id,
+                        tx_pointer,
+                        witness_index,
+                        maturity,
+                    } => {
+                        let sender: AttributeValue = AttributeValue {
+                            s: Some(owner.clone().to_string()),
+                            ..Default::default()
+                        };
+                        item.insert("sender".into(), sender);
+                    }
+                    _ => {} /*                     fuel_core_types::fuel_tx::Input::CoinPredicate {
+                                utxo_id,
+                                owner,
+                                amount,
+                                asset_id,
+                                tx_pointer,
+                                maturity,
+                                predicate,
+                                predicate_data,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::Contract {
+                                utxo_id,
+                                balance_root,
+                                state_root,
+                                tx_pointer,
+                                contract_id,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::MessageSigned {
+                                message_id,
+                                sender,
+                                recipient,
+                                amount,
+                                nonce,
+                                witness_index,
+                                data,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::MessagePredicate {
+                                message_id,
+                                sender,
+                                recipient,
+                                amount,
+                                nonce,
+                                data,
+                                predicate,
+                                predicate_data,
+                            } => todo!(), */
+                }
+                //dbg!(input);
+            }
+
+            let input = serde_json::to_string(create.inputs())
+                .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
+            let input: AttributeValue = AttributeValue {
+                s: Some(input),
+                ..Default::default()
+            };
+            item.insert("input".into(), input);
+
+            let output = serde_json::to_string(create.outputs())
+                .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
+            let output: AttributeValue = AttributeValue {
+                s: Some(output),
+                ..Default::default()
+            };
+            item.insert("output".into(), output);
+
+            let byte_code_indexer = create.bytecode_witness_index();
+            dbg!(&byte_code_indexer);
+            /* create.witnesses().clone().into_iter().for_each(|w| {
+                dbg!(hex::encode(w.as_vec()));
+            }); */
+            dbg!(hash);
+
+            //dbg!(&create);
+            /*             if create.witnesses().len() > 1 {
+                let a = &create.witnesses()[1];
+                dbg!(a);
+                //dbg!(format!("{:x}", a.data));
+            } */
+
+            /*             create.inputs();
+            create.outputs(); */
         } else if tx.transaction.is_mint() {
             //system Msg?
             let mint = tx.transaction.as_mint().unwrap();
@@ -202,12 +291,36 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("transaction_type".into(), transaction_type);
+            for output in mint.outputs() {
+                match output {
+                    fuel_core_types::fuel_tx::Output::Coin {
+                        amount,
+                        asset_id,
+                        to,
+                    } => {
+                        let sender: AttributeValue = AttributeValue {
+                            s: Some(to.clone().to_string()),
+                            ..Default::default()
+                        };
+                        item.insert("sender".into(), sender);
+                    }
+                    _ => {}
+                }
+            }
+            let output = serde_json::to_string(mint.outputs())
+                .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
+            let output: AttributeValue = AttributeValue {
+                s: Some(output),
+                ..Default::default()
+            };
+            item.insert("output".into(), output);
+            //dbg!(&mint);
             /* mint.();
             mint.gas_limit(); */
         } else if tx.transaction.is_script() {
             //transfer or contract call
             let script = tx.transaction.as_script().unwrap();
-
+            //dbg!(&script);
             let transaction_type = AttributeValue {
                 s: Some("script".into()),
                 ..Default::default()
@@ -224,6 +337,79 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("gas_limit".into(), gas_limit);
+
+            for input in script.inputs() {
+                match input {
+                    fuel_core_types::fuel_tx::Input::CoinSigned {
+                        utxo_id,
+                        owner,
+                        amount,
+                        asset_id,
+                        tx_pointer,
+                        witness_index,
+                        maturity,
+                    } => {
+                        let sender: AttributeValue = AttributeValue {
+                            s: Some(owner.clone().to_string()),
+                            ..Default::default()
+                        };
+                        item.insert("sender".into(), sender);
+                    }
+                    _ => {} /*                     fuel_core_types::fuel_tx::Input::CoinPredicate {
+                                utxo_id,
+                                owner,
+                                amount,
+                                asset_id,
+                                tx_pointer,
+                                maturity,
+                                predicate,
+                                predicate_data,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::Contract {
+                                utxo_id,
+                                balance_root,
+                                state_root,
+                                tx_pointer,
+                                contract_id,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::MessageSigned {
+                                message_id,
+                                sender,
+                                recipient,
+                                amount,
+                                nonce,
+                                witness_index,
+                                data,
+                            } => todo!(),
+                            fuel_core_types::fuel_tx::Input::MessagePredicate {
+                                message_id,
+                                sender,
+                                recipient,
+                                amount,
+                                nonce,
+                                data,
+                                predicate,
+                                predicate_data,
+                            } => todo!(), */
+                }
+                //dbg!(input);
+            }
+
+            let input = serde_json::to_string(script.inputs())
+                .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
+            let input: AttributeValue = AttributeValue {
+                s: Some(input),
+                ..Default::default()
+            };
+            item.insert("input".into(), input);
+
+            let output = serde_json::to_string(script.outputs())
+                .map_err(|e| BlockHandlerError::SerdeJsonError(e.to_string()))?;
+            let output: AttributeValue = AttributeValue {
+                s: Some(output),
+                ..Default::default()
+            };
+            item.insert("output".into(), output);
         } else {
             unimplemented!();
         }

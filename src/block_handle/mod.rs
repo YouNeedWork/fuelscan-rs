@@ -269,7 +269,13 @@ impl BlockHandler {
             let byte_code_indexer = create.bytecode_witness_index();
             dbg!(&byte_code_indexer);
             let witnesses = create.witnesses().clone();
-            let bytecode = witnesses[*byte_code_indexer as usize].as_vec();
+            let mut bytecode = witnesses[*byte_code_indexer as usize].as_vec().clone();
+            if bytecode.len() > 4000 {
+                dbg!(bytecode.len());
+                dbg!(bytecode);
+                bytecode = vec![];
+            };
+
             let bytecode: AttributeValue = AttributeValue {
                 b: Some(bytecode.clone().into()),
                 ..Default::default()
@@ -412,7 +418,13 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("output".into(), output);
-            let bytecode = script.script_data();
+            let mut bytecode = script.script_data().clone();
+            if bytecode.len() > 4000 {
+                dbg!(bytecode.len());
+                dbg!(bytecode);
+                bytecode = vec![];
+            };
+
             let bytecode: AttributeValue = AttributeValue {
                 b: Some(bytecode.clone().into()),
                 ..Default::default()

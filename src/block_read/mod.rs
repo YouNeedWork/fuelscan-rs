@@ -61,6 +61,13 @@ impl BlockReader {
                             ..Default::default()
                         },
                     );
+                    key.insert(
+                        "chain".to_string(),
+                        AttributeValue {
+                            n: Some("1".to_string()),
+                            ..Default::default()
+                        },
+                    );
                     key
                 },
                 ..Default::default()

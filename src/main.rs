@@ -3,7 +3,7 @@ use std::str::FromStr;
 use fuel_core_client::client::FuelClient;
 use futures::future;
 use rusoto_core::Region;
-use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ListTablesInput};
+use rusoto_dynamodb::DynamoDbClient;
 
 mod block_handle;
 mod block_read;
@@ -20,13 +20,7 @@ async fn main() {
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
-    let mut block_read = BlockReader::new(
-        50,
-        client,
-        db_client.clone(),
-        shutdown_tx.subscribe(),
-        block_handler_tx,
-    );
+    let mut block_read = BlockReader::new(50, client, db_client.clone(), block_handler_tx);
 
     tokio::spawn(async move {
         match block_read.start().await {

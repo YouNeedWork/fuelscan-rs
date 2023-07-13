@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use fuel_core_client::client::schema::{block::Header, schema::Transaction};
+use fuel_core_client::client::schema::block::Header;
 use fuel_core_client::client::types::TransactionResponse;
 use fuel_core_client::client::FuelClient;
 
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
 use thiserror::Error;
 
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tracing::{info, trace};
 
 pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
@@ -17,7 +17,6 @@ pub struct BlockReader {
     client: FuelClient,
     db_client: DynamoDbClient,
     block_handler: mpsc::Sender<BlockMsg>,
-    shutdown: broadcast::Receiver<()>,
 }
 
 #[derive(Error, Debug)]
@@ -25,9 +24,9 @@ pub enum BlockReaderError {
     #[error("The latest height block: {0}")]
     HeightBlock(u64),
     #[error("Read block info from rpc failed: {0}")]
-    ReadFromRpcError(String),
+    ReadFromRpc(String),
     #[error("Sender failed the Handler channel maybe closed: {0}")]
-    SendToHandlerError(String),
+    SendToHandler(String),
 }
 
 impl BlockReader {
@@ -35,14 +34,13 @@ impl BlockReader {
         batch_fetch_size: u64,
         client: FuelClient,
         db_client: DynamoDbClient,
-        shutdown: broadcast::Receiver<()>,
         block_handler: mpsc::Sender<BlockMsg>,
     ) -> Self {
         Self {
             batch_fetch_size,
             client,
             db_client,
-            shutdown,
+
             block_handler,
         }
     }
@@ -114,7 +112,7 @@ impl BlockReader {
             self.block_handler
                 .send(blocks)
                 .await
-                .map_err(|e| BlockReaderError::SendToHandlerError(e.to_string()))?;
+                .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
             if height % 500 == 0 {
                 info!("Indexer {}", height);
@@ -136,7 +134,7 @@ impl BlockReader {
         let block = match client
             .block_by_height(height)
             .await
-            .map_err(|e| BlockReaderError::ReadFromRpcError(e.to_string()))?
+            .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))?
         {
             Some(block) => block,
             None => {
@@ -161,7 +159,7 @@ impl BlockReader {
                 let feat = client
                     .transaction(&tx_hash.id.to_string())
                     .await
-                    .map_err(|e| BlockReaderError::ReadFromRpcError(e.to_string()));
+                    .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
 
                 (feat, tx_hash.id.to_string())
             })
@@ -170,7 +168,7 @@ impl BlockReader {
 
         let maybe_empty_txs = futures::future::join_all(txs).await;
         for (tx, hash) in maybe_empty_txs {
-            if let Some(tx) = tx.map_err(|e| BlockReaderError::ReadFromRpcError(e.to_string()))? {
+            if let Some(tx) = tx.map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))? {
                 //trace!("tx: {:?}", tx);
                 //dbg!(&tx);
                 transactions.push((hash, tx));

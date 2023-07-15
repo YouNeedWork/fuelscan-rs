@@ -148,7 +148,7 @@ impl BlockHandler {
             .await
             .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
 
-        info!("test");
+        /*         info!("test");
         let temp = self
             .db
             .get::<Transaction>(
@@ -157,7 +157,7 @@ impl BlockHandler {
             )
             .await
             .unwrap();
-        dbg!(temp);
+        dbg!(temp); */
 
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),

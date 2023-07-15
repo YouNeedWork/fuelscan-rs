@@ -14,6 +14,6 @@ RUN apt-get update && apt-get install -y libjemalloc-dev
 ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so
 
 COPY --from=builder /usr/src/fuelscan/target/release/fuelscan /usr/local/bin
-RUN cp /usr/src/fuelscan/target/release/fuelscan /usr/local/bin/fuelscan
+
 WORKDIR /usr/src/fuelscan
 CMD ["fuelscan"]

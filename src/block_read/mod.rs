@@ -7,7 +7,7 @@ use fuel_core_client::client::FuelClient;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
 use thiserror::Error;
 
-use tokio::sync::mpsc;
+use tokio::{select, sync::mpsc};
 use tracing::{info, trace};
 
 pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
@@ -17,6 +17,7 @@ pub struct BlockReader {
     client: FuelClient,
     db_client: DynamoDbClient,
     block_handler: mpsc::Sender<BlockMsg>,
+    shutdown: tokio::sync::broadcast::Receiver<()>,
 }
 
 #[derive(Error, Debug)]
@@ -35,13 +36,16 @@ impl BlockReader {
         client: FuelClient,
         db_client: DynamoDbClient,
         block_handler: mpsc::Sender<BlockMsg>,
+
+        shutdown: tokio::sync::broadcast::Receiver<()>,
     ) -> Self {
         Self {
             batch_fetch_size,
             client,
             db_client,
-
             block_handler,
+
+            shutdown,
         }
     }
 
@@ -118,12 +122,12 @@ impl BlockReader {
                 info!("Indexer {}", height);
             }
 
-            /*             select! {
+            select! {
                 _ = self.shutdown.recv() => {
-                    info!("shutdown signal received");
+                    info!("BlockRead shutdown");
                     return Ok(());
                 }
-            } */
+            }
         }
     }
 
@@ -169,8 +173,6 @@ impl BlockReader {
         let maybe_empty_txs = futures::future::join_all(txs).await;
         for (tx, hash) in maybe_empty_txs {
             if let Some(tx) = tx.map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))? {
-                //trace!("tx: {:?}", tx);
-                //dbg!(&tx);
                 transactions.push((hash, tx));
             }
         }

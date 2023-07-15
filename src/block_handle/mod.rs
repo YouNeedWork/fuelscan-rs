@@ -1,4 +1,4 @@
-use fuel_core_types::fuel_tx::field::*;
+use fuel_core_types::fuel_tx::{field::*, Transaction};
 
 use std::collections::HashMap;
 use thiserror::Error;
@@ -11,12 +11,14 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::block_read::BlockMsg;
+use crate::database::DatabaseName;
+use crate::{block_read::BlockMsg, database::DB};
 
 pub struct BlockHandler {
     db_client: DynamoDbClient,
     block_rx: mpsc::Receiver<BlockMsg>,
     shutdown: broadcast::Receiver<()>,
+    db: DB,
 }
 
 #[derive(Debug, Error)]
@@ -38,11 +40,13 @@ impl BlockHandler {
         db_client: DynamoDbClient,
         block_rx: mpsc::Receiver<BlockMsg>,
         shutdown: broadcast::Receiver<()>,
+        db: DB,
     ) -> Self {
         Self {
             db_client,
             block_rx,
             shutdown,
+            db,
         }
     }
 
@@ -120,7 +124,7 @@ impl BlockHandler {
     }
 
     async fn insert_tx(
-        client: &mut DynamoDbClient,
+        &mut self,
         header: &Header,
         (hash, tx): (String, TransactionResponse),
     ) -> Result<(), BlockHandlerError> {
@@ -135,12 +139,25 @@ impl BlockHandler {
         };
         item.insert("id".into(), id);
 
-        /* let tx_json = tx.transaction.to_json();
-        let transaction: AttributeValue = AttributeValue {
-            s: Some(""),
-            ..Default::default()
-        };
-        item.insert("transaction".into(), transaction); */
+        self.db
+            .set::<Transaction>(
+                DatabaseName::Transaction,
+                &hex::decode(hash.trim_start_matches("0x")).unwrap(),
+                &tx.transaction,
+            )
+            .await
+            .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
+
+        info!("test");
+        let temp = self
+            .db
+            .get::<Transaction>(
+                DatabaseName::Transaction,
+                &hex::decode(hash.trim_start_matches("0x")).unwrap(),
+            )
+            .await
+            .unwrap();
+        dbg!(temp);
 
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -189,12 +206,7 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("gas_limit".into(), gas_limit);
-            /*             let nonce = AttributeValue {
-                n: Some(format!("{}", create.)),
-                ..Default::default()
-            }; */
 
-            //let input = create.inputs();
             for input in create.inputs() {
                 if let fuel_core_types::fuel_tx::Input::CoinSigned {
                     utxo_id: _,
@@ -231,7 +243,6 @@ impl BlockHandler {
             item.insert("output".into(), output);
 
             let byte_code_indexer = create.bytecode_witness_index();
-            dbg!(&byte_code_indexer);
             let witnesses = create.witnesses().clone();
             let mut bytecode = witnesses[*byte_code_indexer as usize].as_vec().clone();
             if bytecode.len() > 4000 {
@@ -245,14 +256,6 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("bytecode".into(), bytecode);
-            /* create.witnesses().len() > 1 {
-                let a = &create.witnesses()[1];
-                dbg!(a);
-                //dbg!(format!("{:x}", a.data));
-            } */
-
-            /*             create.inputs();
-            create.outputs(); */
         } else if tx.transaction.is_mint() {
             //system Msg?
             let mint = tx.transaction.as_mint().unwrap();
@@ -284,9 +287,6 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("output".into(), output);
-            //dbg!(&mint);
-            /* mint.();
-            mint.gas_limit(); */
         } else if tx.transaction.is_script() {
             //transfer or contract call
             let script = tx.transaction.as_script().unwrap();
@@ -359,7 +359,8 @@ impl BlockHandler {
         }
 
         input.item = item;
-        let _ = client
+        let _ = self
+            .db_client
             .put_item(input)
             .await
             .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
@@ -404,6 +405,8 @@ impl BlockHandler {
     }
 
     pub async fn start(&mut self) -> Result<(), BlockHandlerError> {
+        //let local_db = self.db.clone();
+
         loop {
             select! {
                 Some(blocks) = self.block_rx.recv() => {
@@ -411,14 +414,14 @@ impl BlockHandler {
                         self.insert_header(&header).await?;
 
                         for tx in transactions {
-                            Self::insert_tx(&mut self.db_client,&header, tx).await?
+                            self.insert_tx(&header, tx).await?
                         }
 
                         self.update_check_point(header.height.0).await?;
                     }
                 }
                 _ = self.shutdown.recv() => {
-                    info!("shutdown signal received");
+                    info!("BlockHandle shutdown");
                     return Ok(());
                 }
             }

@@ -113,9 +113,9 @@ impl BlockReader {
                 .await
                 .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
-            info!("Indexer Height {} wait for 2 secs", height);
+            info!("Indexer Height {} wait for 5 secs", height);
 
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         }
     }
 

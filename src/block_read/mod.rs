@@ -118,15 +118,8 @@ impl BlockReader {
                 .await
                 .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
-            if height % 500 == 0 {
+            if height % 50 == 0 {
                 info!("Indexer {}", height);
-            }
-
-            select! {
-                _ = self.shutdown.recv() => {
-                    info!("BlockRead shutdown");
-                    return Ok(());
-                }
             }
         }
     }

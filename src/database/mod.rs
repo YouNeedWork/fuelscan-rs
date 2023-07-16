@@ -18,6 +18,8 @@ pub enum DatabaseName {
     Address,
     Calldata,
     Transaction,
+    Script,
+    ScriptData,
 }
 
 pub struct Database {
@@ -27,7 +29,7 @@ pub struct Database {
 impl Database {
     pub fn new() -> Self {
         let mut cfg = DatabaseConfig::default();
-        cfg.columns = 5;
+        cfg.columns = 7;
         let db = RKDB::open(&cfg, "./fuelscan/rocksdb").unwrap();
 
         Self {
@@ -45,6 +47,13 @@ impl Database {
             .unwrap()
             .as_ref()
             .map(|v| flexbuffers::from_slice::<T>(v).ok().unwrap())
+    }
+
+    pub async fn set_raw(&self, col: DatabaseName, key: &[u8], v: &[u8]) -> Result<()> {
+        let db = self.db.write().await;
+        let mut tx = db.transaction();
+        tx.put(col.into(), key, v);
+        Ok(db.write(tx)?)
     }
 
     pub async fn set<T>(&self, col: DatabaseName, key: &[u8], v: &T) -> Result<()>

@@ -148,17 +148,6 @@ impl BlockHandler {
             .await
             .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
 
-        /*         info!("test");
-        let temp = self
-            .db
-            .get::<Transaction>(
-                DatabaseName::Transaction,
-                &hex::decode(hash.trim_start_matches("0x")).unwrap(),
-            )
-            .await
-            .unwrap();
-        dbg!(temp); */
-
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
             ..Default::default()
@@ -207,6 +196,8 @@ impl BlockHandler {
             };
             item.insert("gas_limit".into(), gas_limit);
 
+            let mut contract_address = "".to_string();
+
             for input in create.inputs() {
                 if let fuel_core_types::fuel_tx::Input::CoinSigned {
                     utxo_id: _,
@@ -223,6 +214,23 @@ impl BlockHandler {
                         ..Default::default()
                     };
                     item.insert("sender".into(), sender);
+                }
+
+                if let fuel_core_types::fuel_tx::Input::Contract {
+                    utxo_id: _,
+                    balance_root: _,
+                    state_root: _,
+                    tx_pointer: _,
+                    contract_id,
+                } = input
+                {
+                    contract_address = contract_id.clone().to_string();
+
+                    let contract: AttributeValue = AttributeValue {
+                        s: Some(contract_id.clone().to_string()),
+                        ..Default::default()
+                    };
+                    item.insert("contract_address".into(), contract);
                 }
             }
 
@@ -244,18 +252,16 @@ impl BlockHandler {
 
             let byte_code_indexer = create.bytecode_witness_index();
             let witnesses = create.witnesses().clone();
-            let mut bytecode = witnesses[*byte_code_indexer as usize].as_vec().clone();
-            if bytecode.len() > 4000 {
-                dbg!(bytecode.len());
-                dbg!(bytecode);
-                bytecode = vec![];
-            };
+            let bytecode = witnesses[*byte_code_indexer as usize].as_vec().clone();
 
-            let bytecode: AttributeValue = AttributeValue {
-                b: Some(bytecode.into()),
-                ..Default::default()
-            };
-            item.insert("bytecode".into(), bytecode);
+            self.db
+                .set_raw(
+                    DatabaseName::Contract,
+                    &hex::decode(contract_address.trim_start_matches("0x")).unwrap(),
+                    &bytecode,
+                )
+                .await
+                .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
         } else if tx.transaction.is_mint() {
             //system Msg?
             let mint = tx.transaction.as_mint().unwrap();
@@ -342,18 +348,29 @@ impl BlockHandler {
                 ..Default::default()
             };
             item.insert("output".into(), output);
-            let mut bytecode = script.script_data().clone();
-            if bytecode.len() > 4000 {
-                dbg!(bytecode.len());
-                dbg!(bytecode);
-                bytecode = vec![];
-            };
+            let bytecode = script.script_data().clone();
+            if !bytecode.is_empty() {
+                self.db
+                    .set_raw(
+                        DatabaseName::ScriptData,
+                        &hex::decode(hash.trim_start_matches("0x")).unwrap(),
+                        &bytecode,
+                    )
+                    .await
+                    .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+            }
 
-            let bytecode: AttributeValue = AttributeValue {
-                b: Some(bytecode.into()),
-                ..Default::default()
-            };
-            item.insert("bytecode".into(), bytecode);
+            let bytecode = script.script().clone();
+            if !bytecode.is_empty() {
+                self.db
+                    .set_raw(
+                        DatabaseName::Script,
+                        &hex::decode(hash.trim_start_matches("0x")).unwrap(),
+                        &bytecode,
+                    )
+                    .await
+                    .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+            }
         } else {
             unimplemented!();
         }

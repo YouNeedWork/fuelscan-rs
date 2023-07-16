@@ -7,7 +7,7 @@ use fuel_core_client::client::FuelClient;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
 use thiserror::Error;
 
-use tokio::{select, sync::mpsc};
+use tokio::sync::mpsc;
 use tracing::{info, trace};
 
 pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
@@ -17,7 +17,6 @@ pub struct BlockReader {
     client: FuelClient,
     db_client: DynamoDbClient,
     block_handler: mpsc::Sender<BlockMsg>,
-    shutdown: tokio::sync::broadcast::Receiver<()>,
 }
 
 #[derive(Error, Debug)]
@@ -36,16 +35,12 @@ impl BlockReader {
         client: FuelClient,
         db_client: DynamoDbClient,
         block_handler: mpsc::Sender<BlockMsg>,
-
-        shutdown: tokio::sync::broadcast::Receiver<()>,
     ) -> Self {
         Self {
             batch_fetch_size,
             client,
             db_client,
             block_handler,
-
-            shutdown,
         }
     }
 
@@ -118,9 +113,9 @@ impl BlockReader {
                 .await
                 .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
-            if height % 50 == 0 {
-                info!("Indexer {}", height);
-            }
+            info!("Indexer Height {} wait for 2 secs", height);
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
     }
 

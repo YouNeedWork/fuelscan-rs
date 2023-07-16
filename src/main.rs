@@ -70,13 +70,7 @@ async fn main() {
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
-    let mut block_read = BlockReader::new(
-        50,
-        client,
-        db_client.clone(),
-        block_handler_tx,
-        shutdown_tx.subscribe(),
-    );
+    let mut block_read = BlockReader::new(50, client, db_client.clone(), block_handler_tx);
 
     tokio::spawn(async move {
         match block_read.start().await {

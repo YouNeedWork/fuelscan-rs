@@ -115,7 +115,7 @@ impl BlockReader {
 
             info!("Indexer Height {} wait for 5 secs", height);
 
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
     }
 

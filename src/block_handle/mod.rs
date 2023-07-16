@@ -139,14 +139,14 @@ impl BlockHandler {
         };
         item.insert("id".into(), id);
 
-        self.db
-            .set::<Transaction>(
-                DatabaseName::Transaction,
-                &hex::decode(hash.trim_start_matches("0x")).unwrap(),
-                &tx.transaction,
-            )
-            .await
-            .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
+        /*         self.db
+        .set::<Transaction>(
+            DatabaseName::Transaction,
+            &hex::decode(hash.trim_start_matches("0x")).unwrap(),
+            &tx.transaction,
+        )
+        .await
+        .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?; */
 
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -347,6 +347,7 @@ impl BlockHandler {
                 s: Some(output),
                 ..Default::default()
             };
+
             item.insert("output".into(), output);
             let bytecode = script.script_data().clone();
             if !bytecode.is_empty() {

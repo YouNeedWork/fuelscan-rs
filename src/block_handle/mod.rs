@@ -57,6 +57,11 @@ impl BlockHandler {
         };
 
         let mut item: HashMap<String, AttributeValue> = HashMap::new();
+        let table_type = AttributeValue {
+            s: Some("headers".to_owned()),
+            ..Default::default()
+        };
+        item.insert("type".into(), table_type);
 
         let hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -69,13 +74,6 @@ impl BlockHandler {
             ..Default::default()
         };
         item.insert("block_hash".into(), block_hash); */
-
-        let table_type = AttributeValue {
-            s: Some("headers".to_string()),
-            ..Default::default()
-        };
-
-        item.insert("type".into(), table_type);
 
         let height = AttributeValue {
             n: Some(format!("{}", header.height.0)),

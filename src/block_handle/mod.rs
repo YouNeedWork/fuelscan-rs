@@ -64,11 +64,11 @@ impl BlockHandler {
         };
         item.insert("hash".into(), hash);
 
-        let block_hash: AttributeValue = AttributeValue {
+        /*  let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
             ..Default::default()
         };
-        item.insert("block_hash".into(), block_hash);
+        item.insert("block_hash".into(), block_hash); */
 
         let table_type = AttributeValue {
             s: Some("headers".to_string()),

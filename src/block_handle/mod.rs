@@ -52,13 +52,13 @@ impl BlockHandler {
 
     async fn insert_header(&mut self, header: &Header) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
-            table_name: "fuelscan".to_string(),
+            table_name: "blocks".to_string(),
             ..Default::default()
         };
 
         let mut item: HashMap<String, AttributeValue> = HashMap::new();
         let table_type = AttributeValue {
-            s: Some("headers".to_owned()),
+            s: Some("blocks".to_owned()),
             ..Default::default()
         };
         item.insert("type".into(), table_type);
@@ -69,11 +69,11 @@ impl BlockHandler {
         };
         item.insert("hash".into(), hash);
 
-        /*  let block_hash: AttributeValue = AttributeValue {
+        let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
             ..Default::default()
         };
-        item.insert("block_hash".into(), block_hash); */
+        item.insert("block_hash".into(), block_hash);
 
         let height = AttributeValue {
             n: Some(format!("{}", header.height.0)),
@@ -140,7 +140,7 @@ impl BlockHandler {
         (hash, tx): (String, TransactionResponse),
     ) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
-            table_name: "fuelscan".to_string(),
+            table_name: "transactions".to_string(),
             ..Default::default()
         };
 
@@ -450,11 +450,9 @@ impl BlockHandler {
                 Some(blocks) = self.block_rx.recv() => {
                     for (header, transactions) in blocks {
                         self.insert_header(&header).await?;
-
                         for tx in transactions {
                             self.insert_tx(&header, tx).await?
                         }
-
                         self.update_check_point(header.height.0).await?;
                     }
                 }

@@ -1,4 +1,4 @@
-use fuel_core_types::fuel_tx::{field::*, Transaction};
+use fuel_core_types::fuel_tx::field::*;
 
 use std::collections::HashMap;
 use thiserror::Error;
@@ -52,17 +52,30 @@ impl BlockHandler {
 
     async fn insert_header(&mut self, header: &Header) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
-            table_name: "fuel_headers".to_string(),
+            table_name: "fuelscan".to_string(),
             ..Default::default()
         };
 
         let mut item: HashMap<String, AttributeValue> = HashMap::new();
-        let hash = header.id.to_string();
-        let id = AttributeValue {
-            s: Some(hash),
+
+        let hash: AttributeValue = AttributeValue {
+            s: Some(header.id.to_string()),
             ..Default::default()
         };
-        item.insert("id".into(), id);
+        item.insert("hash".into(), hash);
+
+        let block_hash: AttributeValue = AttributeValue {
+            s: Some(header.id.to_string()),
+            ..Default::default()
+        };
+        item.insert("block_hash".into(), block_hash);
+
+        let table_type = AttributeValue {
+            s: Some("headers".to_string()),
+            ..Default::default()
+        };
+
+        item.insert("type".into(), table_type);
 
         let height = AttributeValue {
             n: Some(format!("{}", header.height.0)),
@@ -129,15 +142,24 @@ impl BlockHandler {
         (hash, tx): (String, TransactionResponse),
     ) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
-            table_name: "fuel_transactions".to_string(),
+            table_name: "fuelscan".to_string(),
             ..Default::default()
         };
+
         let mut item: HashMap<String, AttributeValue> = HashMap::new();
-        let id = AttributeValue {
-            s: Some(hash.clone()),
+        let table_type = AttributeValue {
+            s: Some("transactions".to_owned()),
             ..Default::default()
         };
-        item.insert("id".into(), id);
+        item.insert("type".into(), table_type);
+
+        let hash: AttributeValue = AttributeValue {
+            s: Some(hash.to_string()),
+            ..Default::default()
+        };
+        item.insert("hash".into(), hash);
+
+        let hash = header.id.to_string();
 
         /*         self.db
         .set::<Transaction>(

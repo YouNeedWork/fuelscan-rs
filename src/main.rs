@@ -19,6 +19,8 @@ use tikv_jemallocator::Jemalloc;
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
+use crate::block_read::BlockMsg;
+
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
@@ -65,7 +67,7 @@ async fn main() {
         REGION,
     );
 
-    let (block_handler_tx, block_handler_rx) = tokio::sync::mpsc::channel(1000);
+    let (block_handler_tx, block_handler_rx) = tokio::sync::mpsc::unbounded_channel::<BlockMsg>();
 
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");

@@ -16,7 +16,7 @@ use crate::{block_read::BlockMsg, database::DB};
 
 pub struct BlockHandler {
     db_client: DynamoDbClient,
-    block_rx: mpsc::Receiver<BlockMsg>,
+    block_rx: mpsc::UnboundedReceiver<BlockMsg>,
     shutdown: broadcast::Receiver<()>,
     db: DB,
 }
@@ -38,7 +38,7 @@ pub enum BlockHandlerError {
 impl BlockHandler {
     pub fn new(
         db_client: DynamoDbClient,
-        block_rx: mpsc::Receiver<BlockMsg>,
+        block_rx: mpsc::UnboundedReceiver<BlockMsg>,
         shutdown: broadcast::Receiver<()>,
         db: DB,
     ) -> Self {

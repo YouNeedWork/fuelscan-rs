@@ -16,7 +16,7 @@ pub struct BlockReader {
     batch_fetch_size: u64,
     client: FuelClient,
     db_client: DynamoDbClient,
-    block_handler: mpsc::Sender<BlockMsg>,
+    block_handler: mpsc::UnboundedSender<BlockMsg>,
 }
 
 #[derive(Error, Debug)]
@@ -34,7 +34,7 @@ impl BlockReader {
         batch_fetch_size: u64,
         client: FuelClient,
         db_client: DynamoDbClient,
-        block_handler: mpsc::Sender<BlockMsg>,
+        block_handler: mpsc::UnboundedSender<BlockMsg>,
     ) -> Self {
         Self {
             batch_fetch_size,
@@ -48,7 +48,7 @@ impl BlockReader {
         let db_client = self.db_client.clone();
         let mut height: u64 = async move {
             let input = GetItemInput {
-                table_name: "fuel_check_point".to_string(),
+                table_name: "check_point".to_string(),
                 key: {
                     let mut key = HashMap::new();
                     key.insert(
@@ -110,7 +110,6 @@ impl BlockReader {
 
             self.block_handler
                 .send(blocks)
-                .await
                 .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
             info!("Indexer Height {} wait for 5 secs", height);

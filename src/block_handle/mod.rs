@@ -410,7 +410,7 @@ impl BlockHandler {
 
     async fn update_check_point(&mut self, check_point: u64) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
-            table_name: "fuel_check_point".to_string(),
+            table_name: "check_point".to_string(),
             ..Default::default()
         };
 

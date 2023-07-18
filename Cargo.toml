@@ -9,8 +9,6 @@ edition = "2021"
 tokio = { version = "1.29.1", features = ["full"] }
 fuel-core-client = { version = "0.17.13", features = ["default", "dap"] }
 fuel-core-types = { version = "0.17.13", features = ["serde"] }
-
-
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 async-trait = "0.1.71"
@@ -40,3 +38,14 @@ dotenv = "0.15.0"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 tikv-jemallocator = "0.5"
+
+
+[profile.release]
+# debug = 1 means line charts only, which is minimum needed for good stack traces
+debug = 1
+# Write debug info into a separate file.
+split-debuginfo = 'packed'
+# Without stripping, sui binary size would be > 1GB.
+strip = 'debuginfo'
+# Exit process with SIGABRT when any thread panics
+panic = 'abort'

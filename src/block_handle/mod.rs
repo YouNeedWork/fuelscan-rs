@@ -61,7 +61,7 @@ impl BlockHandler {
             s: Some("blocks".to_owned()),
             ..Default::default()
         };
-        item.insert("type".into(), table_type);
+        item.insert("table_type".into(), table_type);
 
         let hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -149,7 +149,7 @@ impl BlockHandler {
             s: Some("transactions".to_owned()),
             ..Default::default()
         };
-        item.insert("type".into(), table_type);
+        item.insert("table_type".into(), table_type);
 
         let hash: AttributeValue = AttributeValue {
             s: Some(hash.to_string()),

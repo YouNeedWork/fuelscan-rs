@@ -36,9 +36,6 @@ flexbuffers = "2.0.0"
 lazy_static = "1.4.0"
 dotenv = "0.15.0"
 
-[target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = "0.5"
-
 
 [profile.release]
 # debug = 1 means line charts only, which is minimum needed for good stack traces

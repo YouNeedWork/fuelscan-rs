@@ -13,17 +13,11 @@ mod block_handle;
 mod block_read;
 mod database;
 
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
 
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 use crate::block_read::BlockMsg;
-
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
 
 const REGION: Region = Region::UsWest1;
 

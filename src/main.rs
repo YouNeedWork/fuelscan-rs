@@ -13,7 +13,6 @@ mod block_handle;
 mod block_read;
 mod database;
 
-
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 

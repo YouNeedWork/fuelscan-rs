@@ -464,3 +464,9 @@ impl BlockHandler {
         }
     }
 }
+
+impl Drop for BlockHandler {
+    fn drop(&mut self) {
+        info!("BlockHandler drop");
+    }
+}

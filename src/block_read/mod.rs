@@ -8,7 +8,7 @@ use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
 use thiserror::Error;
 
 use tokio::sync::mpsc;
-use tracing::{info, trace};
+use tracing::{error, info, trace};
 
 pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
 
@@ -100,10 +100,7 @@ impl BlockReader {
             let maybe_blocks = futures::future::join_all(fetch_feat).await;
             let mut blocks = vec![];
             for block in maybe_blocks {
-                match block {
-                    Ok(b) => blocks.push(b),
-                    Err(e) => info!("{}", e),
-                }
+                blocks.push(block?);
             }
 
             height += blocks.len() as u64;

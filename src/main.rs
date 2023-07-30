@@ -19,6 +19,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::block_read::BlockMsg;
 
 const REGION: Region = Region::UsWest1;
+use tracing::error;
 
 lazy_static! {
     static ref KEY: String =
@@ -37,7 +38,8 @@ async fn main() {
     let subscriber = FmtSubscriber::builder()
         .with_ansi(true)
         .with_level(true)
-        .with_target(true)
+        .with_line_number(true)
+        .with_file(true)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -87,7 +89,7 @@ async fn main() {
         match block_handle.start().await {
             Ok(_) => {}
             Err(e) => {
-                panic!("{}", e);
+                error!("{}", e);
             }
         }
     });

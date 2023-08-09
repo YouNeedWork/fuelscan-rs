@@ -5,7 +5,7 @@ use std::{str::FromStr, sync::Arc};
 
 use block_read::BlockReader;
 use flume::unbounded;
-use fuel_core_client::client::{FuelClient};
+use fuel_core_client::client::FuelClient;
 
 use rusoto_core::{credential::StaticProvider, Region};
 use rusoto_dynamodb::DynamoDbClient;
@@ -20,7 +20,6 @@ use tracing_subscriber::FmtSubscriber;
 use crate::block_read::BlockMsg;
 
 const REGION: Region = Region::UsWest1;
-
 
 lazy_static! {
     static ref KEY: String =

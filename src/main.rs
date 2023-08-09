@@ -4,7 +4,8 @@ extern crate lazy_static;
 use std::{str::FromStr, sync::Arc};
 
 use block_read::BlockReader;
-use fuel_core_client::client::FuelClient;
+use flume::unbounded;
+use fuel_core_client::client::{FuelClient};
 
 use rusoto_core::{credential::StaticProvider, Region};
 use rusoto_dynamodb::DynamoDbClient;
@@ -19,7 +20,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::block_read::BlockMsg;
 
 const REGION: Region = Region::UsWest1;
-use tracing::error;
+
 
 lazy_static! {
     static ref KEY: String =
@@ -62,12 +63,12 @@ async fn main() {
         REGION,
     );
 
-    let (block_handler_tx, block_handler_rx) = tokio::sync::mpsc::unbounded_channel::<BlockMsg>();
+    let (block_handler_tx, block_handler_rx) = unbounded::<BlockMsg>();
 
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
-    let mut block_read = BlockReader::new(50, client, db_client.clone(), block_handler_tx);
+    let mut block_read = BlockReader::new(20, client, db_client.clone(), block_handler_tx);
 
     tokio::spawn(async move {
         match block_read.start().await {
@@ -78,21 +79,25 @@ async fn main() {
         }
     });
 
-    let mut block_handle = block_handle::BlockHandler::new(
+    let block_handle = block_handle::BlockHandler::new(
         db_client,
         block_handler_rx,
-        shutdown_tx.subscribe(),
+        shutdown_tx.clone(),
         db.clone(),
     );
 
-    tokio::spawn(async move {
-        match block_handle.start().await {
-            Ok(_) => {}
-            Err(e) => {
-                error!("{}", e);
+    for _ in 0..10 {
+        let mut block_handle = block_handle.clone();
+
+        tokio::spawn(async move {
+            match block_handle.start().await {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
             }
-        }
-    });
+        });
+    }
 
     tokio::signal::ctrl_c()
         .await

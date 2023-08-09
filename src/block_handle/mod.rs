@@ -1,23 +1,22 @@
 use fuel_core_types::fuel_tx::field::*;
 
 use std::collections::HashMap;
+
 use thiserror::Error;
 
 use fuel_core_client::client::{schema::block::Header, types::TransactionResponse};
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput};
-use tokio::{
-    select,
-    sync::{broadcast, mpsc},
-};
+use tokio::{select, sync::broadcast};
 use tracing::info;
 
 use crate::database::DatabaseName;
 use crate::{block_read::BlockMsg, database::DB};
 
+#[derive(Clone)]
 pub struct BlockHandler {
     db_client: DynamoDbClient,
-    block_rx: mpsc::UnboundedReceiver<BlockMsg>,
-    shutdown: broadcast::Receiver<()>,
+    block_rx: flume::Receiver<BlockMsg>,
+    shutdown: broadcast::Sender<()>,
     db: DB,
 }
 
@@ -38,8 +37,8 @@ pub enum BlockHandlerError {
 impl BlockHandler {
     pub fn new(
         db_client: DynamoDbClient,
-        block_rx: mpsc::UnboundedReceiver<BlockMsg>,
-        shutdown: broadcast::Receiver<()>,
+        block_rx: flume::Receiver<BlockMsg>,
+        shutdown: broadcast::Sender<()>,
         db: DB,
     ) -> Self {
         Self {
@@ -443,11 +442,11 @@ impl BlockHandler {
     }
 
     pub async fn start(&mut self) -> Result<(), BlockHandlerError> {
-        //let local_db = self.db.clone();
+        let mut shutdown = self.shutdown.subscribe();
 
         loop {
             select! {
-                Some(blocks) = self.block_rx.recv() => {
+                Ok(blocks) = self.block_rx.recv_async() => {
                     for (header, transactions) in blocks {
                         self.insert_header(&header).await?;
                         for tx in transactions {
@@ -456,8 +455,8 @@ impl BlockHandler {
                         self.update_check_point(header.height.0).await?;
                     }
                 }
-                _ = self.shutdown.recv() => {
-                    info!("BlockHandle shutdown");
+                _ = shutdown.recv() => {
+                    info!("BlockHandler shutdown");
                     return Ok(());
                 }
             }

@@ -7,7 +7,6 @@ use fuel_core_client::client::FuelClient;
 use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
 use thiserror::Error;
 
-use tokio::sync::mpsc;
 use tracing::{error, info, trace};
 
 pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
@@ -16,7 +15,7 @@ pub struct BlockReader {
     batch_fetch_size: u64,
     client: FuelClient,
     db_client: DynamoDbClient,
-    block_handler: mpsc::UnboundedSender<BlockMsg>,
+    block_handler: flume::Sender<BlockMsg>,
 }
 
 #[derive(Error, Debug)]
@@ -34,7 +33,7 @@ impl BlockReader {
         batch_fetch_size: u64,
         client: FuelClient,
         db_client: DynamoDbClient,
-        block_handler: mpsc::UnboundedSender<BlockMsg>,
+        block_handler: flume::Sender<BlockMsg>,
     ) -> Self {
         Self {
             batch_fetch_size,
@@ -100,7 +99,16 @@ impl BlockReader {
             let maybe_blocks = futures::future::join_all(fetch_feat).await;
             let mut blocks = vec![];
             for block in maybe_blocks {
-                blocks.push(block?);
+                match block {
+                    Ok(block) => {
+                        blocks.push(block);
+                    }
+                    Err(e) => {
+                        error!("Got Rpc error {},retry in 2 secs", e);
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        continue;
+                    }
+                }
             }
 
             height += blocks.len() as u64;

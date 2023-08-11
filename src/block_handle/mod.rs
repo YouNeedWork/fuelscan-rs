@@ -1,7 +1,6 @@
 use fuel_core_types::fuel_tx::field::*;
-
 use std::collections::HashMap;
-
+use std::time::Duration;
 use thiserror::Error;
 
 use fuel_core_client::client::{schema::block::Header, types::TransactionResponse};
@@ -136,7 +135,7 @@ impl BlockHandler {
     async fn insert_tx(
         &mut self,
         header: &Header,
-        (hash, tx): (String, TransactionResponse),
+        (hash, tx): &(String, TransactionResponse),
     ) -> Result<(), BlockHandlerError> {
         let mut input = PutItemInput {
             table_name: "transactions".to_string(),
@@ -157,15 +156,6 @@ impl BlockHandler {
         item.insert("hash".into(), hash);
 
         let hash = header.id.to_string();
-
-        /*         self.db
-        .set::<Transaction>(
-            DatabaseName::Transaction,
-            &hex::decode(hash.trim_start_matches("0x")).unwrap(),
-            &tx.transaction,
-        )
-        .await
-        .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?; */
 
         let block_hash: AttributeValue = AttributeValue {
             s: Some(header.id.to_string()),
@@ -441,6 +431,20 @@ impl BlockHandler {
         Ok(())
     }
 
+    async fn insert_header_and_txs(
+        &mut self,
+        header: &Header,
+        transactions: &Vec<(String, TransactionResponse)>,
+    ) -> Result<(), BlockHandlerError> {
+        self.insert_header(header).await?;
+        for tx in transactions {
+            self.insert_tx(header, tx).await?;
+        }
+        self.update_check_point(header.height.0).await?;
+
+        Ok(())
+    }
+
     pub async fn start(&mut self) -> Result<(), BlockHandlerError> {
         let mut shutdown = self.shutdown.subscribe();
 
@@ -448,11 +452,10 @@ impl BlockHandler {
             select! {
                 Ok(blocks) = self.block_rx.recv_async() => {
                     for (header, transactions) in blocks {
-                        self.insert_header(&header).await?;
-                        for tx in transactions {
-                            self.insert_tx(&header, tx).await?
+                        while let Err(_) = self.insert_header_and_txs(&header,&transactions).await {
+                            info!("insert_header_and_tx failed, retrying");
+                            tokio::time::sleep(Duration::from_secs(1)).await;
                         }
-                        self.update_check_point(header.height.0).await?;
                     }
                 }
                 _ = shutdown.recv() => {

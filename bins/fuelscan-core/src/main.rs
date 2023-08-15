@@ -1,35 +1,17 @@
-#[macro_use]
-extern crate lazy_static;
-
-use std::{str::FromStr, sync::Arc};
-
 use block_read::BlockReader;
+
+use diesel::{r2d2::ConnectionManager, PgConnection};
 use flume::unbounded;
 use fuel_core_client::client::FuelClient;
-
-use rusoto_core::{credential::StaticProvider, Region};
-use rusoto_dynamodb::DynamoDbClient;
+use std::{str::FromStr, sync::Arc};
 
 mod block_handle;
 mod block_read;
-mod database;
 
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 use crate::block_read::BlockMsg;
-
-const REGION: Region = Region::UsWest1;
-
-lazy_static! {
-    static ref KEY: String =
-        std::env::var("AWS_ACCESS_KEY_ID").expect("AWS_ACCESS_KEY_ID must be set");
-}
-
-lazy_static! {
-    static ref SECTRYKEY: String =
-        std::env::var("AWS_SECRET_ACCESS_KEY").expect("AWS_SECRET_ACCESS_KEY must be set");
-}
 
 #[tokio::main]
 async fn main() {
@@ -44,33 +26,23 @@ async fn main() {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let db = Arc::new(database::Database::new());
+    let manager = ConnectionManager::<PgConnection>::new(std::env::var("DATABASE_URL").unwrap());
+    let pool: diesel::r2d2::Pool<ConnectionManager<PgConnection>> = diesel::r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool");
 
     let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
-
-    let credentials = rusoto_core::credential::AwsCredentials::new(
-        KEY.to_string(),
-        SECTRYKEY.to_string(),
-        None,
-        None,
-    );
-
-    let credentials_provider = StaticProvider::from(credentials);
-    let db_client = DynamoDbClient::new_with(
-        rusoto_core::request::HttpClient::new().unwrap(),
-        credentials_provider,
-        REGION,
-    );
 
     let (block_handler_tx, block_handler_rx) = unbounded::<BlockMsg>();
 
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
-    let mut block_read = BlockReader::new(20, client, db_client.clone(), block_handler_tx);
+    let mut block_read = BlockReader::new(20, client, block_handler_tx);
+    let height = 0;
 
     tokio::spawn(async move {
-        match block_read.start().await {
+        match block_read.start(height).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{}", e);
@@ -78,12 +50,7 @@ async fn main() {
         }
     });
 
-    let block_handle = block_handle::BlockHandler::new(
-        db_client,
-        block_handler_rx,
-        shutdown_tx.clone(),
-        db.clone(),
-    );
+    let block_handle = block_handle::BlockHandler::new(pool, block_handler_rx, shutdown_tx.clone());
 
     for _ in 0..10 {
         let mut block_handle = block_handle.clone();

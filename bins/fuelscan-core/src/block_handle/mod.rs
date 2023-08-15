@@ -1,22 +1,21 @@
-use fuel_core_types::fuel_tx::field::*;
-use std::collections::HashMap;
+use crate::block_read::BlockMsg;
+use fuel_core_client::client::{schema::block::Header, types::TransactionResponse};
+
+use models::PgSqlPool;
+
 use std::time::Duration;
 use thiserror::Error;
-
-use fuel_core_client::client::{schema::block::Header, types::TransactionResponse};
-use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, PutItemInput};
 use tokio::{select, sync::broadcast};
 use tracing::info;
 
-use crate::database::DatabaseName;
-use crate::{block_read::BlockMsg, database::DB};
+pub mod blocks;
+pub mod transactions;
 
 #[derive(Clone)]
 pub struct BlockHandler {
-    db_client: DynamoDbClient,
+    db_client: PgSqlPool,
     block_rx: flume::Receiver<BlockMsg>,
     shutdown: broadcast::Sender<()>,
-    db: DB,
 }
 
 #[derive(Debug, Error)]
@@ -35,99 +34,24 @@ pub enum BlockHandlerError {
 
 impl BlockHandler {
     pub fn new(
-        db_client: DynamoDbClient,
+        db_client: PgSqlPool,
         block_rx: flume::Receiver<BlockMsg>,
         shutdown: broadcast::Sender<()>,
-        db: DB,
     ) -> Self {
         Self {
             db_client,
             block_rx,
             shutdown,
-            db,
         }
     }
 
     async fn insert_header(&mut self, header: &Header) -> Result<(), BlockHandlerError> {
-        let mut input = PutItemInput {
-            table_name: "blocks".to_string(),
-            ..Default::default()
-        };
-
-        let mut item: HashMap<String, AttributeValue> = HashMap::new();
-        let table_type = AttributeValue {
-            s: Some("blocks".to_owned()),
-            ..Default::default()
-        };
-        item.insert("table_type".into(), table_type);
-
-        let hash: AttributeValue = AttributeValue {
-            s: Some(header.id.to_string()),
-            ..Default::default()
-        };
-        item.insert("hash".into(), hash);
-
-        let block_hash: AttributeValue = AttributeValue {
-            s: Some(header.id.to_string()),
-            ..Default::default()
-        };
-        item.insert("block_hash".into(), block_hash);
-
-        let height = AttributeValue {
-            n: Some(format!("{}", header.height.0)),
-            ..Default::default()
-        };
-        item.insert("height".into(), height);
-
-        let da_height = AttributeValue {
-            n: Some(format!("{}", header.da_height.0)),
-            ..Default::default()
-        };
-        item.insert("da_height".into(), da_height);
-
-        let timestamp = AttributeValue {
-            n: Some(format!("{}", header.time.0.to_unix())),
-            ..Default::default()
-        };
-        item.insert("timestamp".into(), timestamp);
-
-        let prev_root = AttributeValue {
-            s: Some(format!("{}", header.prev_root)),
-            ..Default::default()
-        };
-        item.insert("prev_root".into(), prev_root);
-        let transactions_root = AttributeValue {
-            s: Some(format!("{}", header.transactions_root)),
-            ..Default::default()
-        };
-        item.insert("transactions_root".into(), transactions_root);
-        let output_messages_root = AttributeValue {
-            s: Some(format!("{}", header.output_messages_root)),
-            ..Default::default()
-        };
-        item.insert("output_messages_root".into(), output_messages_root);
-        let application_hash = AttributeValue {
-            s: Some(format!("{}", header.application_hash)),
-            ..Default::default()
-        };
-        item.insert("application_hash".into(), application_hash);
-        let transactions_count = AttributeValue {
-            n: Some(format!("{}", header.transactions_count.0)),
-            ..Default::default()
-        };
-        item.insert("transactions_count".into(), transactions_count);
-        let output_messages_count = AttributeValue {
-            n: Some(format!("{}", header.output_messages_count.0)),
-            ..Default::default()
-        };
-        item.insert("output_messages_count".into(), output_messages_count);
-
-        input.item = item;
-        let _ = self
-            .db_client
-            .put_item(input)
-            .await
-            .map_err(|e| BlockHandlerError::InsertHeaderDb(e.to_string()))?;
+        /*         let _ = self
+        .db_client
+        .put_item(input)
+        .await
+        .map_err(|e| BlockHandlerError::InsertHeaderDb(e.to_string()))?; */
+        dbg!("insert Header", header);
 
         Ok(())
     }
@@ -137,7 +61,8 @@ impl BlockHandler {
         header: &Header,
         (hash, tx): &(String, TransactionResponse),
     ) -> Result<(), BlockHandlerError> {
-        let mut input = PutItemInput {
+        dbg!("insert transactions", header);
+        /*         let mut input = PutItemInput {
             table_name: "transactions".to_string(),
             ..Default::default()
         };
@@ -390,13 +315,13 @@ impl BlockHandler {
             .db_client
             .put_item(input)
             .await
-            .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
+            .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?; */
 
         Ok(())
     }
 
     async fn update_check_point(&mut self, check_point: u64) -> Result<(), BlockHandlerError> {
-        let mut input = PutItemInput {
+        /*  let mut input = PutItemInput {
             table_name: "check_point".to_string(),
             ..Default::default()
         };
@@ -426,7 +351,7 @@ impl BlockHandler {
             .db_client
             .put_item(input)
             .await
-            .map_err(|e| BlockHandlerError::InsertUpdateCheckPoint(e.to_string()))?;
+            .map_err(|e| BlockHandlerError::InsertUpdateCheckPoint(e.to_string()))?; */
 
         Ok(())
     }

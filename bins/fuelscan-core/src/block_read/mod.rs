@@ -2,15 +2,18 @@ use fuel_core_client::client::schema::block::Header;
 use fuel_core_client::client::types::TransactionResponse;
 use fuel_core_client::client::FuelClient;
 
+use fuel_core_types::fuel_tx::Receipt;
 use thiserror::Error;
 use tracing::{error, info, trace};
 
-pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
+pub type BlockBodies = Vec<(String, Option<TransactionResponse>, Vec<Receipt>)>;
+
+pub type FetchBlockResult = (Header, BlockBodies);
 
 pub struct BlockReader {
     batch_fetch_size: u64,
     client: FuelClient,
-    block_handler: flume::Sender<BlockMsg>,
+    block_handler: flume::Sender<Vec<FetchBlockResult>>,
 }
 
 #[derive(Error, Debug)]
@@ -27,7 +30,7 @@ impl BlockReader {
     pub fn new(
         batch_fetch_size: u64,
         client: FuelClient,
-        block_handler: flume::Sender<BlockMsg>,
+        block_handler: flume::Sender<Vec<FetchBlockResult>>,
     ) -> Self {
         Self {
             batch_fetch_size,
@@ -71,7 +74,7 @@ impl BlockReader {
     async fn fetch_block(
         client: &FuelClient,
         height: u64,
-    ) -> Result<(Header, Vec<(String, TransactionResponse)>), BlockReaderError> {
+    ) -> Result<FetchBlockResult, BlockReaderError> {
         let block = match client
             .block_by_height(height)
             .await
@@ -101,17 +104,19 @@ impl BlockReader {
                     .transaction(&tx_hash.id.to_string())
                     .await
                     .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
+                let reseipts = client
+                    .receipts(&tx_hash.id.to_string())
+                    .await
+                    .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
 
-                (feat, tx_hash.id.to_string())
+                (feat, reseipts, tx_hash.id.to_string())
             })
             .collect::<Vec<_>>();
         let mut transactions = vec![];
 
         let maybe_empty_txs = futures::future::join_all(txs).await;
-        for (tx, hash) in maybe_empty_txs {
-            if let Some(tx) = tx.map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))? {
-                transactions.push((hash, tx));
-            }
+        for (tx, reseipts, hash) in maybe_empty_txs {
+            transactions.push((hash, tx?, reseipts?));
         }
 
         Ok((header, transactions))

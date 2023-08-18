@@ -3,7 +3,7 @@ use block_read::BlockReader;
 use diesel::{r2d2::ConnectionManager, PgConnection};
 use flume::unbounded;
 use fuel_core_client::client::FuelClient;
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 mod block_handle;
 mod block_read;
@@ -11,7 +11,7 @@ mod block_read;
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::block_read::BlockMsg;
+use crate::block_read::FetchBlockResult;
 
 #[tokio::main]
 async fn main() {
@@ -33,13 +33,13 @@ async fn main() {
 
     let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
 
-    let (block_handler_tx, block_handler_rx) = unbounded::<BlockMsg>();
+    let (block_handler_tx, block_handler_rx) = unbounded::<Vec<FetchBlockResult>>();
 
     let client =
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
     let mut block_read = BlockReader::new(20, client, block_handler_tx);
-    let height = 0;
+    let height = 100000;
 
     tokio::spawn(async move {
         match block_read.start(height).await {
@@ -52,18 +52,18 @@ async fn main() {
 
     let block_handle = block_handle::BlockHandler::new(pool, block_handler_rx, shutdown_tx.clone());
 
-    for _ in 0..10 {
-        let mut block_handle = block_handle.clone();
+    //for _ in 0..10 {
+    let mut block_handle = block_handle.clone();
 
-        tokio::spawn(async move {
-            match block_handle.start().await {
-                Ok(_) => {}
-                Err(e) => {
-                    panic!("{}", e);
-                }
+    tokio::spawn(async move {
+        match block_handle.start().await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{}", e);
             }
-        });
-    }
+        }
+    });
+    //}
 
     tokio::signal::ctrl_c()
         .await

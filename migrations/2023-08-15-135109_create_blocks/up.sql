@@ -2,8 +2,8 @@
 create table
   blocks (
     id character varying(255) not null,
-    height integer not null,
-    da_height integer not null,
+    height BIGINT not null,
+    da_height BIGINT not null,
     application_hash character varying(255) not null,
     output_messages_root_hash character varying(255) not null,
     transactions_root character varying(255) not null,
@@ -11,8 +11,9 @@ create table
     coinbase character varying(255) null,
     coinbase_hash character varying(255) null,
     coinbase_amount character varying(255) null,
-    timestamp integer not null,
-    count integer not null,
+    timestamp BIGINT not null,
+    transaction_count BIGINT not null,
+    output_message_count BIGINT not null,
     constraint blocks_pkey primary key (id)
   ) tablespace pg_default;
 

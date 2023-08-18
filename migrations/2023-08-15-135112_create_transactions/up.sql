@@ -1,16 +1,24 @@
 -- Your SQL goes here
+DO
+$$
+BEGIN
+CREATE TYPE tx_type AS ENUM ('call', 'deploy');
+CREATE TYPE tx_status AS ENUM ('success', 'failed');
+END
+$$;
+
 create table
   transctions (
     id character varying(255) not null,
-    height integer not null,
+    height BIGINT not null,
     block_hash character varying(255) not null,
-    tx_type public.transaction_type null,
-    da_height integer not null,
+    tx_type tx_type null,
+    da_height BIGINT not null,
     gas_limit character varying(255) not null,
     gas_price character varying(255) not null,
-    timestamp integer not null,
+    timestamp BIGINT not null,
     sender character varying(255) null,
-    status public.status null,
+    status tx_status null,
     reason character varying(255) null,
     input json null,
     output json null,

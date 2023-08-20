@@ -75,6 +75,11 @@ pub fn deploy_contract_transactions(
     header: &Header,
     bodies: &BlockBodies,
 ) -> Vec<(Transaction, Contract)> {
+    //genesis block don't give any response
+    if header.transactions_count.0 == 0 {
+        return vec![];
+    };
+
     let contract_txs = bodies
         .iter()
         .filter(|tx| tx.1.as_ref().is_some())
@@ -169,6 +174,11 @@ pub fn deploy_contract_transactions(
 }
 
 pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transaction, Call)> {
+    //genesis block don't give any response
+    if header.transactions_count.0 == 0 {
+        return vec![];
+    };
+
     let contract_txs = bodies
         .iter()
         .filter(|tx| tx.1.as_ref().is_some())

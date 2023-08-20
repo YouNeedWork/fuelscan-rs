@@ -17,6 +17,12 @@ pub struct BlockReader {
     block_handler: flume::Sender<Vec<FetchBlockResult>>,
 }
 
+impl Drop for BlockReader {
+    fn drop(&mut self) {
+        info!("BlockReader drop");
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum BlockReaderError {
     #[error("The latest height block: {0}")]

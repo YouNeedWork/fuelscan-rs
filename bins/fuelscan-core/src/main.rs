@@ -22,7 +22,7 @@ async fn main() {
         .with_ansi(true)
         .with_level(true)
         .with_line_number(true)
-        .with_file(true)
+        //.with_file(true)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -53,18 +53,18 @@ async fn main() {
 
     let block_handle = block_handle::BlockHandler::new(pool, block_handler_rx, shutdown_tx.clone());
 
-    //for _ in 0..10 {
-    let mut block_handle = block_handle.clone();
+    for _ in 0..10 {
+        let mut block_handle = block_handle.clone();
 
-    tokio::spawn(async move {
-        match block_handle.start().await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e);
+        tokio::spawn(async move {
+            match block_handle.start().await {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
             }
-        }
-    });
-    //}
+        });
+    }
 
     tokio::signal::ctrl_c()
         .await

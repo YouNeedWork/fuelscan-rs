@@ -29,14 +29,24 @@ pub enum BlockHandlerError {
     InsertHeaderDb(String),
     #[error("failed to insert transaction into db: {0}")]
     InsertTransactionDb(String),
-    #[error("failed to update check_point: {0}")]
-    InsertUpdateCheckPoint(String),
+    #[error("insert contracts failed: {0}")]
+    InsertContract(String),
+    #[error("insert calls failed: {0}")]
+    InsertCalls(String),
     #[error("failed to insert into db: {0}")]
     InsertDb(String),
+    #[error("failed to insert into db: {0}")]
+    GetPgSqlPoolFailed(String),
     #[error("failed to serialize json: {0}")]
     SerdeJson(String),
     #[error("process data error: {0}")]
     DataProcessError(String),
+}
+
+impl From<diesel::result::Error> for BlockHandlerError {
+    fn from(e: diesel::result::Error) -> Self {
+        BlockHandlerError::InsertDb(e.to_string())
+    }
 }
 
 impl BlockHandler {
@@ -60,32 +70,33 @@ impl BlockHandler {
         let mut conn = self
             .db_client
             .get()
-            .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+            .map_err(|e| BlockHandlerError::GetPgSqlPoolFailed(e.to_string()))?;
 
         let (block, coinbase, transactions, contracts, calls) = process(header, bodies)
             .await
             .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
-        batch_insert_block(&mut conn, &vec![block])
-            .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
-        if let Some(c) = coinbase {
-            batch_insert_coinbase(&mut conn, &vec![c])
-                .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
-        }
-        batch_insert_transactions(&mut conn, &transactions)
-            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+        conn.build_transaction()
+            .read_write()
+            .serializable()
+            .deferrable()
+            .run(|conn| {
+                batch_insert_block(conn, &vec![block])
+                    .map_err(|e| BlockHandlerError::InsertHeaderDb(e.to_string()))?;
+                if let Some(c) = coinbase {
+                    batch_insert_coinbase(conn, &vec![c])
+                        .map_err(|e| BlockHandlerError::InsertHeaderDb(e.to_string()))?;
+                }
+                batch_insert_transactions(conn, &transactions)
+                    .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
 
-        batch_insert_contracts(&mut conn, &contracts)
-            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+                batch_insert_contracts(conn, &contracts)
+                    .map_err(|e| BlockHandlerError::InsertContract(e.to_string()))?;
 
-        batch_insert_calls(&mut conn, &calls)
-            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
-        // insert_header(&mut conn, header).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
-        /*     for tx in transactions {
-                   insert_tx(header, tx).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
-               }
-        */
-        Ok(())
+                batch_insert_calls(conn, &calls)
+                    .map_err(|e| BlockHandlerError::InsertCalls(e.to_string()))?;
+                Ok(())
+            })
     }
 
     pub async fn start(&mut self) -> Result<(), BlockHandlerError> {
@@ -95,8 +106,8 @@ impl BlockHandler {
             select! {
                 Ok(blocks) = self.block_rx.recv_async() => {
                     for (header, transactions) in blocks {
-                        while let Err(_) = self.insert_header_and_txs(&header,&transactions).await {
-                            info!("insert_header_and_tx failed, retrying");
+                        while let Err(e) = self.insert_header_and_txs(&header,&transactions).await {
+                            info!("insert_header_and_tx failed {}, retrying",e.to_string());
                             tokio::time::sleep(Duration::from_secs(1)).await;
                         }
                     }

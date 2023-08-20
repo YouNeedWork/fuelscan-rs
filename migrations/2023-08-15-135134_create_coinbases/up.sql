@@ -5,8 +5,8 @@ create table
     height BIGINT null,
     da_height BIGINT null,
     block_hash character varying(255) not null,
-    amount character varying(255) null,
+    amount BIGINT null,
     coinbase character varying(255) null,
-    timestamp BIGINT null,
+    timestamp BIGINT,
     constraint coinbases_pkey primary key (id)
   ) tablespace pg_default;

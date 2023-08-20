@@ -18,7 +18,7 @@ pub struct Block {
     pub prev_root: String,
     pub coinbase: Option<String>,
     pub coinbase_hash: Option<String>,
-    pub coinbase_amount: Option<String>,
+    pub coinbase_amount: Option<i64>,
     pub transaction_count: i64,
     pub output_message_count: i64,
     pub timestamp: i64,

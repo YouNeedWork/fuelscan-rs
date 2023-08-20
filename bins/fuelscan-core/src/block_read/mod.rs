@@ -5,6 +5,7 @@ use fuel_core_client::client::FuelClient;
 use fuel_core_types::fuel_tx::Receipt;
 use thiserror::Error;
 use tracing::{error, info, trace};
+pub type BlockBody = (String, Option<TransactionResponse>, Vec<Receipt>);
 
 pub type BlockBodies = Vec<(String, Option<TransactionResponse>, Vec<Receipt>)>;
 

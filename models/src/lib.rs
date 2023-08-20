@@ -2,8 +2,9 @@ use diesel::{
     r2d2::{ConnectionManager, Pool},
     PgConnection,
 };
-
-pub mod db;
+pub mod block;
+pub mod coinbase;
+pub mod contract;
 pub mod schema;
 pub mod transaction;
 

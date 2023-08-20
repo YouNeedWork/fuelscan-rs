@@ -39,7 +39,7 @@ async fn main() {
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
     let mut block_read = BlockReader::new(20, client, block_handler_tx);
-    let height = 100000;
+    let height = 104000;
 
     tokio::spawn(async move {
         match block_read.start(height).await {

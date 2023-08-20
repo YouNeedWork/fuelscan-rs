@@ -1,11 +1,11 @@
 #[allow(implied_bounds_entailment)]
 use anyhow::Result;
 
-use diesel::{Insertable, PgConnection, RunQueryDsl};
+use diesel::{insert_into, Insertable, PgConnection, RunQueryDsl};
 use diesel_derive_enum::DbEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::schema::transctions;
+use crate::schema::transactions;
 
 #[derive(DbEnum, Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
 #[ExistingTypePath = "crate::schema::sql_types::TxStatus"]
@@ -24,43 +24,31 @@ pub enum TxType {
 }
 
 #[derive(Insertable, Debug, Clone, Serialize, Deserialize)]
-#[diesel(table_name = transctions)]
+#[diesel(table_name = transactions)]
 pub struct Transaction {
     pub id: String,
     pub height: i64,
     pub da_height: i64,
     pub block_hash: String,
     pub tx_type: Option<TxType>,
-    pub gas_limit: Option<String>,
-    pub gas_price: Option<String>,
+    pub gas_limit: i64,
+    pub gas_price: i64,
+    pub gas_used: i64,
     pub timestamp: i64,
     pub sender: Option<String>,
-    pub status: Option<TxStatus>,
-    pub reason: Option<String>,
+    pub status: TxStatus,
+    pub reason: String,
     pub input: Option<serde_json::Value>,
     pub output: Option<serde_json::Value>,
+    pub receipts: Option<serde_json::Value>,
 }
 
-/* pub fn batch_insert_block(connection: &mut PgConnection, records: &Vec<Block>) -> Result<usize> {
-    insert_into(blocks::table)
+pub fn batch_insert_transactions(
+    connection: &mut PgConnection,
+    records: &Vec<Transaction>,
+) -> Result<usize> {
+    insert_into(transactions::table)
         .values(records)
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
-} */
-
-/* transctions (id) {
-    id -> Varchar,
-    height -> Int8,
-    block_hash -> Varchar,
-    tx_type -> Nullable<TransactionType>,
-    da_height -> Int4,
-    gas_limit -> Varchar,
-    gas_price -> Varchar,
-    timestamp -> Int4,
-    sender -> Nullable<Varchar>,
-    status -> Nullable<Status>,
-    reason -> Nullable<Varchar>,
-    input -> Nullable<Json>,
-    output -> Nullable<Json>,
 }
- */

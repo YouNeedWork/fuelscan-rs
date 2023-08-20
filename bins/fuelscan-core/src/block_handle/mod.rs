@@ -2,7 +2,10 @@ use crate::block_read::{BlockBodies, FetchBlockResult};
 
 use fuel_core_client::client::schema::block::Header;
 
-use models::PgSqlPool;
+use models::{
+    block::batch_insert_block, coinbase::batch_insert_coinbase, contract::batch_insert_contracts,
+    transaction::batch_insert_transactions, PgSqlPool,
+};
 
 use crate::block_handle::process::process;
 use std::time::Duration;
@@ -62,11 +65,22 @@ impl BlockHandler {
             .get()
             .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
 
-        let () = process(header, bodies)
+        let (block, coinbase, transactions, contracts) = process(header, bodies)
             .await
             .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
-        insert_header(&mut conn, header).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+        batch_insert_block(&mut conn, &vec![block])
+            .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+        if let Some(c) = coinbase {
+            batch_insert_coinbase(&mut conn, &vec![c])
+                .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
+        }
+        batch_insert_transactions(&mut conn, &transactions)
+            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+
+        batch_insert_contracts(&mut conn, &contracts)
+            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+        // insert_header(&mut conn, header).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
         /*     for tx in transactions {
                    insert_tx(header, tx).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
                }

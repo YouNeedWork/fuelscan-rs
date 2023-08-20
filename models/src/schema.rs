@@ -12,6 +12,7 @@ pub mod sql_types {
 
 diesel::table! {
     accounts (id) {
+
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -19,6 +20,7 @@ diesel::table! {
 
 diesel::table! {
     assets (id) {
+
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -26,16 +28,23 @@ diesel::table! {
 
 diesel::table! {
     blocks (id) {
+
         id -> Varchar,
         height -> Int8,
         da_height -> Int8,
+
         application_hash -> Varchar,
+
         output_messages_root_hash -> Varchar,
+
         transactions_root -> Varchar,
+
         prev_root -> Varchar,
+
         coinbase -> Nullable<Varchar>,
+
         coinbase_hash -> Nullable<Varchar>,
-        coinbase_amount -> Nullable<Varchar>,
+        coinbase_amount -> Nullable<Int8>,
         timestamp -> Int8,
         transaction_count -> Int8,
         output_message_count -> Int8,
@@ -44,25 +53,37 @@ diesel::table! {
 
 diesel::table! {
     coinbases (id) {
+
         id -> Varchar,
         height -> Nullable<Int8>,
         da_height -> Nullable<Int8>,
+
         block_hash -> Varchar,
-        amount -> Nullable<Varchar>,
+        amount -> Nullable<Int8>,
+
         coinbase -> Nullable<Varchar>,
         timestamp -> Nullable<Int8>,
     }
 }
 
 diesel::table! {
-    contracts (id) {
-        id -> Varchar,
-        timestamp -> Nullable<Int4>,
+    contracts (contract_id) {
+
+        contract_id -> Varchar,
+
+        transaction_id -> Varchar,
+
+        sender -> Varchar,
+        bytecode -> Text,
+        bytecoin_length -> Int8,
+        storage_slots -> Nullable<Json>,
+        timestamp -> Int8,
     }
 }
 
 diesel::table! {
     nfts (id) {
+
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -73,20 +94,26 @@ diesel::table! {
     use super::sql_types::TxType;
     use super::sql_types::TxStatus;
 
-    transctions (id) {
+    transactions (id) {
+
         id -> Varchar,
         height -> Int8,
+
         block_hash -> Varchar,
         tx_type -> Nullable<TxType>,
         da_height -> Int8,
-        gas_limit -> Varchar,
-        gas_price -> Varchar,
+        gas_limit -> Int8,
+        gas_price -> Int8,
+        gas_used -> Int8,
         timestamp -> Int8,
-        sender -> Nullable<Varchar>,
-        status -> Nullable<TxStatus>,
-        reason -> Nullable<Varchar>,
+
+        sender -> Varchar,
+        status -> TxStatus,
+
+        reason -> Varchar,
         input -> Nullable<Json>,
         output -> Nullable<Json>,
+        receipts -> Nullable<Json>,
     }
 }
 
@@ -97,5 +124,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     coinbases,
     contracts,
     nfts,
-    transctions,
+    transactions,
 );

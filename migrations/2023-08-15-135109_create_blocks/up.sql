@@ -10,7 +10,7 @@ create table
     prev_root character varying(255) not null,
     coinbase character varying(255) null,
     coinbase_hash character varying(255) null,
-    coinbase_amount character varying(255) null,
+    coinbase_amount BIGINT  null,
     timestamp BIGINT not null,
     transaction_count BIGINT not null,
     output_message_count BIGINT not null,

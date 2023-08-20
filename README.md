@@ -19,7 +19,9 @@ drop table if exists assets;
 drop table if exists accounts;
 drop table if exists check_point;
 drop table if exists transactions;
-drop table if exists coinbase;
+drop table if exists coinbases;
 drop table if exists contracts;
 drop table if exists nfts;
+drop type if exists tx_type;
+drop type if exists tx_status;
 ```

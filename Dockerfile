@@ -10,7 +10,7 @@ RUN cargo build --release
 
 FROM debian:bullseye-slim AS runtime
 # Use jemalloc as memory allocator
-RUN apt-get update && apt-get install -y libjemalloc-dev ca-certificates
+RUN apt-get update && apt-get install -y libjemalloc-dev ca-certificates libpq-dev
 RUN update-ca-certificates
 
 COPY --from=builder /usr/src/fuelscan/target/release/fuelscan-core /usr/local/bin

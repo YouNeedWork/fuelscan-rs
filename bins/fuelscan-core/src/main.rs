@@ -3,6 +3,7 @@ use block_read::BlockReader;
 use diesel::{r2d2::ConnectionManager, PgConnection};
 use flume::unbounded;
 use fuel_core_client::client::FuelClient;
+use models::block::get_last_block_height;
 use std::str::FromStr;
 
 mod block_handle;
@@ -39,7 +40,7 @@ async fn main() {
         FuelClient::from_str("https://beta-3.fuel.network").expect("failed to create client");
 
     let mut block_read = BlockReader::new(20, client, block_handler_tx);
-    let height = 106000;
+    let height = get_last_block_height(&mut pool.get().unwrap()) as u64;
 
     tokio::spawn(async move {
         match block_read.start(height).await {

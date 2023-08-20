@@ -1,7 +1,7 @@
 #[allow(implied_bounds_entailment)]
 use anyhow::Result;
 
-use diesel::{insert_into, Insertable, PgConnection, RunQueryDsl};
+use diesel::{insert_into, Insertable, PgConnection, QueryDsl, RunQueryDsl};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::blocks;
@@ -29,4 +29,15 @@ pub fn batch_insert_block(connection: &mut PgConnection, records: &Vec<Block>) -
         .values(records)
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
+}
+
+pub fn get_last_block_height(connection: &mut PgConnection) -> i64 {
+    use crate::schema::blocks::dsl::*;
+    use diesel::dsl::max;
+
+    blocks
+        .select(max(height))
+        .first::<Option<i64>>(connection)
+        .unwrap_or(Some(0))
+        .unwrap_or_default()
 }

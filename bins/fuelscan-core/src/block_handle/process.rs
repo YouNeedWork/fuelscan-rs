@@ -84,9 +84,6 @@ pub fn deploy_contract_transactions(
     contract_txs
         .iter()
         .map(|(tx_hash, tx, receipts)| {
-            dbg!(tx_hash);
-            dbg!(tx);
-            dbg!(receipts);
             //this is safe we already check
             let create = tx.as_ref().unwrap().transaction.as_create().unwrap();
             let sender = create
@@ -181,9 +178,6 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
     contract_txs
         .iter()
         .map(|(tx_hash, tx, receipts)| {
-            dbg!(tx_hash);
-            dbg!(tx);
-            dbg!(receipts);
             //this is safe we already check
             let call = tx
                 .as_ref()

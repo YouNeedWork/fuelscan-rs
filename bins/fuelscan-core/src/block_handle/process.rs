@@ -245,6 +245,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                         .iter()
                         .find(|receipt| match receipt {
                             Receipt::Call { .. } => true,
+                            Receipt::Transfer { .. } => true,
                             _ => false,
                         })
                         .expect("can't find coin output")
@@ -264,6 +265,20 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                             Some(*amount as i64),
                             Some(asset_id.to_string()),
                             add_0x_prefix(to.to_string()),
+                            Some(hex::encode(payload)),
+                            Some(hex::encode(payload_data)),
+                        ),
+                        Receipt::Transfer {
+                            id,
+                            //to,
+                            amount,
+                            asset_id,
+                            ..
+                        } => (
+                            CallType::Contract,
+                            Some(*amount as i64),
+                            Some(asset_id.to_string()),
+                            add_0x_prefix(id.to_string()),
                             Some(hex::encode(payload)),
                             Some(hex::encode(payload_data)),
                         ),

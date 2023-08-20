@@ -25,6 +25,8 @@ pub fn batch_insert_contracts(
 ) -> Result<usize> {
     insert_into(contracts::table)
         .values(records)
+        .on_conflict(contracts::contract_id)
+        .do_nothing()
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

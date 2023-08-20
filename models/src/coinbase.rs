@@ -25,6 +25,8 @@ pub fn batch_insert_coinbase(
 ) -> Result<usize> {
     insert_into(coinbases::table)
         .values(records)
+        .on_conflict(coinbases::id)
+        .do_nothing()
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

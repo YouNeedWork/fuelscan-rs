@@ -27,6 +27,8 @@ pub struct Block {
 pub fn batch_insert_block(connection: &mut PgConnection, records: &Vec<Block>) -> Result<usize> {
     insert_into(blocks::table)
         .values(records)
+        .on_conflict(blocks::id)
+        .do_nothing()
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

@@ -49,6 +49,8 @@ pub fn batch_insert_transactions(
 ) -> Result<usize> {
     insert_into(transactions::table)
         .values(records)
+        .on_conflict(transactions::id)
+        .do_nothing()
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

@@ -39,6 +39,8 @@ pub struct Call {
 pub fn batch_insert_calls(connection: &mut PgConnection, records: &Vec<Call>) -> Result<usize> {
     insert_into(calls::table)
         .values(records)
+        .on_conflict(calls::transaction_id)
+        .do_nothing()
         .execute(connection)
         .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

@@ -196,14 +196,14 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                 .transaction
                 .as_script()
                 .unwrap();
-            let sender = call
+            let (sender, signed_asset_id) = call
                 .inputs()
                 .iter()
                 .find(|t| t.is_coin_signed())
                 .and_then(|t| match t {
-                    fuel_core_types::fuel_tx::Input::CoinSigned { owner, .. } => {
-                        Some(add_0x_prefix(owner.to_string()))
-                    }
+                    fuel_core_types::fuel_tx::Input::CoinSigned {
+                        owner, asset_id, ..
+                    } => Some((add_0x_prefix(owner.to_string()), asset_id)),
                     _ => None,
                 })
                 .expect("can't find coin sign");
@@ -278,16 +278,23 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     None,
                 ) */
                 } else {
+                    dbg!(&call);
+
                     let (amount, id, to) = call
                         .outputs()
                         .iter()
-                        .find(|t| t.is_coin())
+                        .find(|t| t.is_coin() || t.is_message())
                         .and_then(|t| match t {
+                            //FIX:: this can be contract call or simple transfer
                             fuel_core_types::fuel_tx::Output::Coin {
                                 amount,
                                 asset_id,
                                 to,
                             } => Some((amount, asset_id, to.to_string())),
+                            //I think this is only  for the transfer ?? why this call message ?
+                            fuel_core_types::fuel_tx::Output::Message { amount, recipient } => {
+                                Some((amount, signed_asset_id, recipient.to_string()))
+                            }
                             _ => None,
                         })
                         .expect("can't find coin output");

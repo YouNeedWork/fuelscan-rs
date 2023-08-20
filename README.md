@@ -14,6 +14,7 @@ use tool
 
 drop all tables 
 ```sql
+drop table if exists calls;
 drop table if exists blocks;
 drop table if exists assets;
 drop table if exists accounts;
@@ -24,4 +25,5 @@ drop table if exists contracts;
 drop table if exists nfts;
 drop type if exists tx_type;
 drop type if exists tx_status;
+drop type if exists call_type;
 ```

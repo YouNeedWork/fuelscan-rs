@@ -3,8 +3,8 @@ use crate::block_read::{BlockBodies, FetchBlockResult};
 use fuel_core_client::client::schema::block::Header;
 
 use models::{
-    block::batch_insert_block, coinbase::batch_insert_coinbase, contract::batch_insert_contracts,
-    transaction::batch_insert_transactions, PgSqlPool,
+    block::batch_insert_block, call::batch_insert_calls, coinbase::batch_insert_coinbase,
+    contract::batch_insert_contracts, transaction::batch_insert_transactions, PgSqlPool,
 };
 
 use crate::block_handle::process::process;
@@ -13,11 +13,8 @@ use thiserror::Error;
 use tokio::{select, sync::broadcast};
 use tracing::info;
 
-use self::{blocks::insert_header, transactions::insert_tx};
-
 pub mod blocks;
 pub mod process;
-pub mod transactions;
 
 #[derive(Clone)]
 pub struct BlockHandler {
@@ -65,7 +62,7 @@ impl BlockHandler {
             .get()
             .map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
 
-        let (block, coinbase, transactions, contracts) = process(header, bodies)
+        let (block, coinbase, transactions, contracts, calls) = process(header, bodies)
             .await
             .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
@@ -79,6 +76,9 @@ impl BlockHandler {
             .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
         batch_insert_contracts(&mut conn, &contracts)
+            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+
+        batch_insert_calls(&mut conn, &calls)
             .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
         // insert_header(&mut conn, header).map_err(|e| BlockHandlerError::InsertDb(e.to_string()))?;
         /*     for tx in transactions {
@@ -110,8 +110,10 @@ impl BlockHandler {
     }
 }
 
-impl Drop for BlockHandler {
-    fn drop(&mut self) {
-        info!("BlockHandler drop");
+pub fn add_0x_prefix(mut addr: String) -> String {
+    if !addr.starts_with("0x") {
+        addr.insert_str(0, "0x");
     }
+
+    addr
 }

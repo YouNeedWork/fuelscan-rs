@@ -13,7 +13,7 @@ FROM debian:bullseye-slim AS runtime
 RUN apt-get update && apt-get install -y libjemalloc-dev ca-certificates
 RUN update-ca-certificates
 
-COPY --from=builder /usr/src/fuelscan/target/release/fuelscan /usr/local/bin
+COPY --from=builder /usr/src/fuelscan/target/release/fuelscan-core /usr/local/bin
 
 WORKDIR /usr/src/fuelscan
-CMD ["fuelscan"]
+CMD ["fuelscan-core"]

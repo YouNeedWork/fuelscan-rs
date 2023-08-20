@@ -1,21 +1,20 @@
-use std::collections::HashMap;
-
 use fuel_core_client::client::schema::block::Header;
 use fuel_core_client::client::types::TransactionResponse;
 use fuel_core_client::client::FuelClient;
 
-use rusoto_dynamodb::{AttributeValue, DynamoDb, DynamoDbClient, GetItemInput};
+use fuel_core_types::fuel_tx::Receipt;
 use thiserror::Error;
-
 use tracing::{error, info, trace};
+pub type BlockBody = (String, Option<TransactionResponse>, Vec<Receipt>);
 
-pub type BlockMsg = Vec<(Header, Vec<(String, TransactionResponse)>)>;
+pub type BlockBodies = Vec<(String, Option<TransactionResponse>, Vec<Receipt>)>;
+
+pub type FetchBlockResult = (Header, BlockBodies);
 
 pub struct BlockReader {
     batch_fetch_size: u64,
     client: FuelClient,
-    db_client: DynamoDbClient,
-    block_handler: flume::Sender<BlockMsg>,
+    block_handler: flume::Sender<Vec<FetchBlockResult>>,
 }
 
 #[derive(Error, Debug)]
@@ -32,65 +31,16 @@ impl BlockReader {
     pub fn new(
         batch_fetch_size: u64,
         client: FuelClient,
-        db_client: DynamoDbClient,
-        block_handler: flume::Sender<BlockMsg>,
+        block_handler: flume::Sender<Vec<FetchBlockResult>>,
     ) -> Self {
         Self {
             batch_fetch_size,
             client,
-            db_client,
             block_handler,
         }
     }
 
-    pub async fn start(&mut self) -> Result<(), BlockReaderError> {
-        let db_client = self.db_client.clone();
-        let mut height: u64 = async move {
-            let input = GetItemInput {
-                table_name: "check_point".to_string(),
-                key: {
-                    let mut key = HashMap::new();
-                    key.insert(
-                        "id".to_string(),
-                        AttributeValue {
-                            n: Some("1".to_string()),
-                            ..Default::default()
-                        },
-                    );
-                    key.insert(
-                        "chain".to_string(),
-                        AttributeValue {
-                            n: Some("1".to_string()),
-                            ..Default::default()
-                        },
-                    );
-                    key
-                },
-                ..Default::default()
-            };
-            let get_res = db_client.get_item(input).await;
-
-            match get_res {
-                Ok(res) => match res.item {
-                    Some(item) => {
-                        let check_point = item
-                            .get("check_point")
-                            .expect("failed to get check_point")
-                            .n
-                            .as_ref()
-                            .expect("failed to get check_point")
-                            .parse::<u64>()
-                            .expect("failed to parse height");
-                        info!("check point height: {}", check_point);
-                        check_point
-                    }
-                    None => 0,
-                },
-                Err(_) => 0,
-            }
-        }
-        .await;
-
+    pub async fn start(&mut self, mut height: u64) -> Result<(), BlockReaderError> {
         loop {
             let fetch_feat = (height..(height + self.batch_fetch_size))
                 .map(|h| Self::fetch_block(&self.client, h))
@@ -125,7 +75,7 @@ impl BlockReader {
     async fn fetch_block(
         client: &FuelClient,
         height: u64,
-    ) -> Result<(Header, Vec<(String, TransactionResponse)>), BlockReaderError> {
+    ) -> Result<FetchBlockResult, BlockReaderError> {
         let block = match client
             .block_by_height(height)
             .await
@@ -155,17 +105,19 @@ impl BlockReader {
                     .transaction(&tx_hash.id.to_string())
                     .await
                     .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
+                let reseipts = client
+                    .receipts(&tx_hash.id.to_string())
+                    .await
+                    .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
 
-                (feat, tx_hash.id.to_string())
+                (feat, reseipts, tx_hash.id.to_string())
             })
             .collect::<Vec<_>>();
         let mut transactions = vec![];
 
         let maybe_empty_txs = futures::future::join_all(txs).await;
-        for (tx, hash) in maybe_empty_txs {
-            if let Some(tx) = tx.map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))? {
-                transactions.push((hash, tx));
-            }
+        for (tx, reseipts, hash) in maybe_empty_txs {
+            transactions.push((hash, tx?, reseipts?));
         }
 
         Ok((header, transactions))

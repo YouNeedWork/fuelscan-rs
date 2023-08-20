@@ -1,11 +1,16 @@
-[package]
+[workspace.package]
 name = "fuelscan"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = ["bins/fuelscan-core", "bins/fuelscan-api", "models"]
 
-[dependencies]
+
+[workspace.dependencies]
+models = { path = "models" }
+
 tokio = { version = "1.29.1", features = ["full"] }
 fuel-core-client = { version = "0.17.13", features = ["default", "dap"] }
 fuel-core-types = { version = "0.17.13", features = ["serde"] }
@@ -14,36 +19,19 @@ tracing-subscriber = "0.3.17"
 async-trait = "0.1.71"
 futures = "0.3.28"
 thiserror = "1.0.43"
-rusoto_core = { version = "0.48.0", default_features = false, features = [
-    "rustls",
-] }
-rusoto_sqs = { version = "0.48.0", default_features = false, features = [
-    "rustls",
-] }
-rusoto_s3 = { version = "0.48.0", default_features = false, features = [
-    "rustls",
-] }
-rusoto_dynamodb = { version = "0.48.0", default-features = false, features = [
-    "rustls",
-] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 hex = "0.4.3"
-kvdb-rocksdb = "0.19.0"
 num_enum = "0.6.1"
 anyhow = "1.0.71"
-flexbuffers = "2.0.0"
-lazy_static = "1.4.0"
 dotenv = "0.15.0"
 flume = "0.10.14"
+chrono = "*"
 
+diesel = { version = "2.0.3", features = ["postgres", "r2d2", "serde_json"] }
+diesel-async = { version = "0.2.1", features = ["postgres"] }
+diesel-derive-enum = { version = "^2.0.1", features = ["postgres"] }
 
 [profile.release]
-# debug = 1 means line charts only, which is minimum needed for good stack traces
 debug = 1
-# Write debug info into a separate file.
-split-debuginfo = 'packed'
-# Without stripping, sui binary size would be > 1GB.
-strip = 'debuginfo'
-# Exit process with SIGABRT when any thread panics
 panic = 'abort'

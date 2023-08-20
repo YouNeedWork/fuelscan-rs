@@ -1,8 +1,6 @@
 #![allow(dead_code)]
-
-use std::sync::Arc;
-
 use num_enum::IntoPrimitive;
+use std::sync::Arc;
 
 use anyhow::Result;
 use kvdb_rocksdb::{Database as RKDB, DatabaseConfig};

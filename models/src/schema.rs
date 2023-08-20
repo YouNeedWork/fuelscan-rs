@@ -16,7 +16,7 @@ pub mod sql_types {
 
 diesel::table! {
     accounts (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -24,7 +24,7 @@ diesel::table! {
 
 diesel::table! {
     assets (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -32,21 +32,21 @@ diesel::table! {
 
 diesel::table! {
     blocks (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         height -> Int8,
         da_height -> Int8,
-
+        #[max_length = 255]
         application_hash -> Varchar,
-
+        #[max_length = 255]
         output_messages_root_hash -> Varchar,
-
+        #[max_length = 255]
         transactions_root -> Varchar,
-
+        #[max_length = 255]
         prev_root -> Varchar,
-
+        #[max_length = 255]
         coinbase -> Nullable<Varchar>,
-
+        #[max_length = 255]
         coinbase_hash -> Nullable<Varchar>,
         coinbase_amount -> Nullable<Int8>,
         timestamp -> Int8,
@@ -60,22 +60,22 @@ diesel::table! {
     use super::sql_types::CallType;
 
     calls (transaction_id) {
-
+        #[max_length = 255]
         transaction_id -> Varchar,
         height -> Int8,
         da_height -> Int8,
-
+        #[max_length = 255]
         block_hash -> Varchar,
         call_type -> CallType,
         gas_limit -> Int8,
         gas_price -> Int8,
         gas_used -> Int8,
-
+        #[max_length = 255]
         sender -> Varchar,
-
+        #[max_length = 255]
         receiver -> Varchar,
         amount -> Nullable<Int8>,
-
+        #[max_length = 255]
         asset_id -> Nullable<Varchar>,
         payload -> Nullable<Text>,
         payload_data -> Nullable<Text>,
@@ -85,14 +85,14 @@ diesel::table! {
 
 diesel::table! {
     coinbases (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         height -> Nullable<Int8>,
         da_height -> Nullable<Int8>,
-
+        #[max_length = 255]
         block_hash -> Varchar,
         amount -> Nullable<Int8>,
-
+        #[max_length = 255]
         coinbase -> Nullable<Varchar>,
         timestamp -> Nullable<Int8>,
     }
@@ -100,11 +100,11 @@ diesel::table! {
 
 diesel::table! {
     contracts (contract_id) {
-
+        #[max_length = 255]
         contract_id -> Varchar,
-
+        #[max_length = 255]
         transaction_id -> Varchar,
-
+        #[max_length = 255]
         sender -> Varchar,
         bytecode -> Text,
         bytecoin_length -> Int8,
@@ -115,7 +115,7 @@ diesel::table! {
 
 diesel::table! {
     nfts (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         timestamp -> Nullable<Int8>,
     }
@@ -127,10 +127,10 @@ diesel::table! {
     use super::sql_types::TxStatus;
 
     transactions (id) {
-
+        #[max_length = 255]
         id -> Varchar,
         height -> Int8,
-
+        #[max_length = 255]
         block_hash -> Varchar,
         tx_type -> Nullable<TxType>,
         da_height -> Int8,
@@ -138,10 +138,10 @@ diesel::table! {
         gas_price -> Int8,
         gas_used -> Int8,
         timestamp -> Int8,
-
+        #[max_length = 255]
         sender -> Varchar,
         status -> TxStatus,
-
+        #[max_length = 255]
         reason -> Varchar,
         input -> Nullable<Json>,
         output -> Nullable<Json>,

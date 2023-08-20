@@ -278,8 +278,6 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     None,
                 ) */
                 } else {
-                    dbg!(&call);
-
                     let (amount, id, to) = call
                         .outputs()
                         .iter()

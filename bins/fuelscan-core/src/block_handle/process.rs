@@ -296,10 +296,17 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     let (amount, id, to) = call
                         .outputs()
                         .iter()
-                        .find(|t| t.is_coin() || t.is_message())
+                        .find(|t| t.is_coin() || t.is_message() || t.is_variable())
                         .and_then(|t| match t {
                             //FIX:: this can be contract call or simple transfer
+                            //transfer to gas coin?
                             fuel_core_types::fuel_tx::Output::Coin {
+                                amount,
+                                asset_id,
+                                to,
+                            } => Some((amount, asset_id, to.to_string())),
+                            //transfer other asserts
+                            fuel_core_types::fuel_tx::Output::Variable {
                                 amount,
                                 asset_id,
                                 to,

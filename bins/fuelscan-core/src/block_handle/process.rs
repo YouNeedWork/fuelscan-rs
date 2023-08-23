@@ -246,13 +246,15 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             {
                 let payload = call.script();
                 let payload_data = call.script_data();
-
                 match receipts
                     .iter()
                     .find(|receipt| match receipt {
                         Receipt::Call { .. } => true,
                         Receipt::Transfer { .. } => true,
-                        _ => false,
+
+                        //there is also contract created but maybe failed.
+                        //we shuld check this and put in the tarnscation table or what??
+                        _ => true,
                     })
                     .expect("can't find coin output")
                 {
@@ -288,7 +290,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                         Some(hex::encode(payload)),
                         Some(hex::encode(payload_data)),
                     ),
-                    _ => unreachable!(),
+                    _ => (CallType::Contract, None, None, "".to_string(), None, None),
                 }
             } else {
                 let (amount, id, to) = match call

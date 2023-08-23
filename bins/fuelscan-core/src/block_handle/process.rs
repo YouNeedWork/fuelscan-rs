@@ -1,11 +1,14 @@
 use anyhow::Result;
 use fuel_core_client::client::{schema::block::Header, types::TransactionStatus};
-use fuel_core_types::fuel_tx::{
-    field::{
-        BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
-        ScriptData, StorageSlots, Witnesses,
+use fuel_core_types::{
+    fuel_tx::{
+        field::{
+            BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
+            ScriptData, StorageSlots, Witnesses,
+        },
+        Receipt,
     },
-    Receipt,
+    fuel_types::{Address, AssetId},
 };
 
 use models::{
@@ -236,98 +239,111 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             let input = serde_json::to_value(call.inputs()).ok();
             let output = serde_json::to_value(call.outputs()).ok();
 
-            let (call_type, amount, asset_id, to, payload, payload_data) =
-                if let Some(_) = call.outputs().iter().find(|t| t.is_contract()) {
-                    let payload = call.script();
-                    let payload_data = call.script_data();
+            let (call_type, amount, asset_id, to, payload, payload_data) = if let Some(_) = call
+                .outputs()
+                .iter()
+                .find(|t| t.is_contract() || t.is_contract_created())
+            {
+                let payload = call.script();
+                let payload_data = call.script_data();
 
-                    match receipts
-                        .iter()
-                        .find(|receipt| match receipt {
-                            Receipt::Call { .. } => true,
-                            Receipt::Transfer { .. } => true,
-                            _ => false,
-                        })
-                        .expect("can't find coin output")
-                    {
-                        Receipt::Call {
+                match receipts
+                    .iter()
+                    .find(|receipt| match receipt {
+                        Receipt::Call { .. } => true,
+                        Receipt::Transfer { .. } => true,
+                        _ => false,
+                    })
+                    .expect("can't find coin output")
+                {
+                    Receipt::Call {
+                        amount,
+                        asset_id,
+                        to,
+                        id: _,
+                        gas: _,
+                        param1: _,
+                        param2: _,
+                        pc: _,
+                        is: _,
+                    } => (
+                        CallType::Contract,
+                        Some(*amount as i64),
+                        Some(asset_id.to_string()),
+                        add_0x_prefix(to.to_string()),
+                        Some(hex::encode(payload)),
+                        Some(hex::encode(payload_data)),
+                    ),
+                    Receipt::Transfer {
+                        id,
+                        //to,
+                        amount,
+                        asset_id,
+                        ..
+                    } => (
+                        CallType::Contract,
+                        Some(*amount as i64),
+                        Some(asset_id.to_string()),
+                        add_0x_prefix(id.to_string()),
+                        Some(hex::encode(payload)),
+                        Some(hex::encode(payload_data)),
+                    ),
+                    _ => unreachable!(),
+                }
+            } else {
+                let (amount, id, to) = match call
+                    .outputs()
+                    .iter()
+                    .find(|t| {
+                        t.is_coin() || t.is_message() || t.is_variable() || t.is_contract_created()
+                    })
+                    .and_then(|t| match t {
+                        //FIX:: this can be contract call or simple transfer
+                        //transfer to gas coin?
+                        fuel_core_types::fuel_tx::Output::Coin {
                             amount,
                             asset_id,
                             to,
-                            id: _,
-                            gas: _,
-                            param1: _,
-                            param2: _,
-                            pc: _,
-                            is: _,
-                        } => (
-                            CallType::Contract,
-                            Some(*amount as i64),
-                            Some(asset_id.to_string()),
-                            add_0x_prefix(to.to_string()),
-                            Some(hex::encode(payload)),
-                            Some(hex::encode(payload_data)),
-                        ),
-                        Receipt::Transfer {
-                            id,
-                            //to,
+                        } => Some((amount, asset_id, to.to_string())),
+                        //transfer other asserts
+                        fuel_core_types::fuel_tx::Output::Variable {
                             amount,
                             asset_id,
-                            ..
-                        } => (
-                            CallType::Contract,
-                            Some(*amount as i64),
-                            Some(asset_id.to_string()),
-                            add_0x_prefix(id.to_string()),
-                            Some(hex::encode(payload)),
-                            Some(hex::encode(payload_data)),
-                        ),
-                        _ => unreachable!(),
+                            to,
+                        } => Some((amount, asset_id, to.to_string())),
+                        //I think this is only  for the transfer ?? why this call message ?
+                        fuel_core_types::fuel_tx::Output::Message { amount, recipient } => {
+                            Some((amount, signed_asset_id, recipient.to_string()))
+                        }
+                        _ => None,
+                    }) {
+                    Some((amount, asset_id, address)) => {
+                        (Some(*amount as i64), Some(asset_id.to_string()), address)
                     }
-                /*                     (
-                    CallType::Contract,
-                    Some(*amount as i64),
-                    Some(id.to_string()),
-                    to.to_string(),
-                    None,
-                    None,
-                ) */
-                } else {
-                    let (amount, id, to) = call
-                        .outputs()
-                        .iter()
-                        .find(|t| t.is_coin() || t.is_message() || t.is_variable())
-                        .and_then(|t| match t {
-                            //FIX:: this can be contract call or simple transfer
-                            //transfer to gas coin?
-                            fuel_core_types::fuel_tx::Output::Coin {
-                                amount,
-                                asset_id,
-                                to,
-                            } => Some((amount, asset_id, to.to_string())),
-                            //transfer other asserts
-                            fuel_core_types::fuel_tx::Output::Variable {
-                                amount,
-                                asset_id,
-                                to,
-                            } => Some((amount, asset_id, to.to_string())),
-                            //I think this is only  for the transfer ?? why this call message ?
-                            fuel_core_types::fuel_tx::Output::Message { amount, recipient } => {
-                                Some((amount, signed_asset_id, recipient.to_string()))
-                            }
-                            _ => None,
-                        })
-                        .expect("can't find coin output");
-
-                    (
-                        CallType::Transaction,
-                        Some(*amount as i64),
-                        Some(id.to_string()),
-                        add_0x_prefix(to.to_string()),
-                        None,
-                        None,
-                    )
+                    None => (None, None, "".to_string()),
                 };
+
+                let payload = if !call.script().is_empty() {
+                    Some(hex::encode(call.script()))
+                } else {
+                    None
+                };
+
+                let payload_data = if !call.script_data().is_empty() {
+                    Some(hex::encode(call.script_data()))
+                } else {
+                    None
+                };
+
+                (
+                    CallType::Transaction,
+                    amount,
+                    id,
+                    add_0x_prefix(to.to_string()),
+                    payload,
+                    payload_data,
+                )
+            };
 
             (
                 Transaction {

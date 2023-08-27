@@ -5,12 +5,10 @@ use flume::unbounded;
 use fuel_core_client::client::FuelClient;
 use models::block::get_last_block_height;
 use std::str::FromStr;
+use tracing_subscriber::FmtSubscriber;
 
 mod block_handle;
 mod block_read;
-
-use tracing::info;
-use tracing_subscriber::FmtSubscriber;
 
 use crate::block_read::FetchBlockResult;
 

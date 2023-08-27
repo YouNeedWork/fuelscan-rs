@@ -1,7 +1,7 @@
-use anyhow::Result;
-use diesel::PgConnection;
+
+
 use fuel_core_client::client::schema::block::Header;
-use models::block::{batch_insert_block, Block};
+use models::block::{Block};
 
 pub fn init_block_by_with_header(header: &Header) -> Block {
     Block {

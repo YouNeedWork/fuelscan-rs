@@ -37,10 +37,16 @@ pub enum BlockHandlerError {
     InsertDb(String),
     #[error("failed to insert into db: {0}")]
     GetPgSqlPoolFailed(String),
-    #[error("failed to serialize json: {0}")]
-    SerdeJson(String),
+    /*     #[error("failed to serialize json: {0}")]
+    SerdeJson(String), */
     #[error("process data error: {0}")]
     DataProcessError(String),
+}
+
+impl Drop for BlockHandler {
+    fn drop(&mut self) {
+        info!("BlockHandler drop");
+    }
 }
 
 impl From<diesel::result::Error> for BlockHandlerError {

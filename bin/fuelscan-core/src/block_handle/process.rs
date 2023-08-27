@@ -1,14 +1,11 @@
 use anyhow::Result;
 use fuel_core_client::client::{schema::block::Header, types::TransactionStatus};
-use fuel_core_types::{
-    fuel_tx::{
-        field::{
-            BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
-            ScriptData, StorageSlots, Witnesses,
-        },
-        Receipt,
+use fuel_core_types::fuel_tx::{
+    field::{
+        BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
+        ScriptData, StorageSlots, Witnesses,
     },
-    fuel_types::{Address, AssetId},
+    Receipt,
 };
 
 use models::{
@@ -49,7 +46,7 @@ pub async fn process(
                 height: header.height.0 as i64,
                 da_height: header.da_height.0 as i64,
                 block_hash: header.id.to_string(),
-                amount: block.coinbase_amount.clone(),
+                amount: block.coinbase_amount,
                 coinbase: block.coinbase.clone(),
                 timestamp: Some(header.time.0.to_unix()),
             });
@@ -132,10 +129,7 @@ pub fn deploy_contract_transactions(
 
             let gas_used = receipts
                 .iter()
-                .filter(|receipt| match receipt {
-                    Receipt::ScriptResult { .. } => true,
-                    _ => false,
-                })
+                .filter(|receipt| matches!(receipt, Receipt::ScriptResult { .. }))
                 .map(|receipt| receipt.gas_used().unwrap())
                 .sum::<u64>() as i64;
 
@@ -149,10 +143,10 @@ pub fn deploy_contract_transactions(
                     gas_limit: *create.gas_limit() as i64,
                     gas_price: *create.gas_price() as i64,
                     gas_used,
-                    timestamp: header.time.clone().to_unix() as i64,
+                    timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.clone()),
-                    status: status,
-                    reason: reason,
+                    status,
+                    reason,
                     input,
                     output,
                     receipts: serde_json::to_value(receipts).ok(),
@@ -169,7 +163,7 @@ pub fn deploy_contract_transactions(
                     ),
                     bytecoin_length: *create.bytecode_length() as i64,
                     storage_slots: serde_json::to_value(create.storage_slots()).ok(),
-                    timestamp: header.time.clone().to_unix() as i64,
+                    timestamp: header.time.clone().to_unix(),
                 },
             )
         })
@@ -192,19 +186,17 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
         .iter()
         .map(|(tx_hash, tx, receipts)| {
             //this is safe we already check
-            let call = tx
-                .as_ref()
-                .clone()
-                .unwrap()
-                .transaction
-                .as_script()
-                .unwrap();
+            let call = tx.as_ref().unwrap().transaction.as_script().unwrap();
+
             let (sender, signed_asset_id) = call
                 .inputs()
                 .iter()
-                .find(|t| t.is_coin_signed())
+                .find(|t| t.is_coin_signed() || t.is_coin_predicate())
                 .and_then(|t| match t {
                     fuel_core_types::fuel_tx::Input::CoinSigned {
+                        owner, asset_id, ..
+                    } => Some((add_0x_prefix(owner.to_string()), asset_id)),
+                    fuel_core_types::fuel_tx::Input::CoinPredicate {
                         owner, asset_id, ..
                     } => Some((add_0x_prefix(owner.to_string()), asset_id)),
                     _ => None,
@@ -229,20 +221,17 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
 
             let gas_used = receipts
                 .iter()
-                .filter(|receipt| match receipt {
-                    Receipt::ScriptResult { .. } => true,
-                    _ => false,
-                })
+                .filter(|receipt| matches!(receipt, Receipt::ScriptResult { .. }))
                 .map(|receipt| receipt.gas_used().unwrap())
                 .sum::<u64>() as i64;
 
             let input = serde_json::to_value(call.inputs()).ok();
             let output = serde_json::to_value(call.outputs()).ok();
 
-            let (call_type, amount, asset_id, to, payload, payload_data) = if let Some(_) = call
+            let (call_type, amount, asset_id, to, payload, payload_data) = if call
                 .outputs()
                 .iter()
-                .find(|t| t.is_contract() || t.is_contract_created())
+                .any(|t| t.is_contract() || t.is_contract_created())
             {
                 let payload = call.script();
                 let payload_data = call.script_data();
@@ -357,10 +346,10 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     gas_limit: *call.gas_limit() as i64,
                     gas_price: *call.gas_price() as i64,
                     gas_used,
-                    timestamp: header.time.clone().to_unix() as i64,
+                    timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.to_string()),
-                    status: status,
-                    reason: reason,
+                    status,
+                    reason,
                     input,
                     output,
                     receipts: serde_json::to_value(receipts).ok(),
@@ -380,7 +369,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     asset_id,
                     payload,
                     payload_data,
-                    timestamp: header.time.clone().to_unix() as i64,
+                    timestamp: header.time.clone().to_unix(),
                 },
             )
         })

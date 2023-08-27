@@ -1,4 +1,4 @@
-#[allow(implied_bounds_entailment)]
+#![allow(implied_bounds_entailment)]
 use anyhow::Result;
 
 use diesel::{insert_into, Insertable, PgConnection, QueryDsl, RunQueryDsl};
@@ -41,6 +41,6 @@ pub fn get_last_block_height(connection: &mut PgConnection) -> i64 {
         .select(max(height))
         .first::<Option<i64>>(connection)
         .unwrap_or(Some(0))
-        .and_then(|h| Some(h + 1))
+        .map(|h| h + 1)
         .unwrap_or_default()
 }

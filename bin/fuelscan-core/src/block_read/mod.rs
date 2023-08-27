@@ -1,4 +1,4 @@
-use fuel_core_client::client::schema::block::Header;
+use fuel_core_client::client::schema::block::{Header};
 use fuel_core_client::client::types::TransactionResponse;
 use fuel_core_client::client::FuelClient;
 
@@ -19,7 +19,7 @@ pub struct BlockReader {
 
 impl Drop for BlockReader {
     fn drop(&mut self) {
-        info!("BlockReader drop");
+        info!("Block Rpc Reader drop");
     }
 }
 
@@ -115,7 +115,6 @@ impl BlockReader {
                     .receipts(&tx_hash.id.to_string())
                     .await
                     .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
-
                 (feat, reseipts, tx_hash.id.to_string())
             })
             .collect::<Vec<_>>();

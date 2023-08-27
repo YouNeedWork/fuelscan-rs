@@ -1,4 +1,4 @@
-use fuel_core_client::client::schema::block::{Header};
+use fuel_core_client::client::schema::block::Header;
 use fuel_core_client::client::types::TransactionResponse;
 use fuel_core_client::client::FuelClient;
 

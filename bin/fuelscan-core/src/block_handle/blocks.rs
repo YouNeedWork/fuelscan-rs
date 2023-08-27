@@ -1,7 +1,5 @@
-
-
 use fuel_core_client::client::schema::block::Header;
-use models::block::{Block};
+use models::block::Block;
 
 pub fn init_block_by_with_header(header: &Header) -> Block {
     Block {

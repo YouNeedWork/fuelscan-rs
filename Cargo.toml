@@ -9,7 +9,6 @@ members = ["bin/fuelscan-core", "bin/fuelscan-api", "models"]
 
 [workspace.dependencies]
 models = { path = "models" }
-
 tokio = { version = "1.29.1", features = ["full"] }
 fuel-core-client = { version = "0.17.13", features = ["default", "dap"] }
 fuel-core-types = { version = "0.17.13", features = ["serde"] }

@@ -55,7 +55,6 @@ async fn main() {
 
     for _ in 0..10 {
         let mut block_handle = block_handle.clone();
-
         tokio::spawn(async move {
             match block_handle.start().await {
                 Ok(_) => {}
@@ -69,6 +68,5 @@ async fn main() {
     tokio::signal::ctrl_c()
         .await
         .expect("failed to install CTRL+C signal handler");
-    info!("shutdown signal received");
     shutdown_tx.send(()).unwrap();
 }

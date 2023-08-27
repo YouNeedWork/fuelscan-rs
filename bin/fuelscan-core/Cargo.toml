@@ -7,7 +7,6 @@ edition.workspace = true
 
 [dependencies]
 models = { workspace = true }
-
 tokio = { workspace = true }
 fuel-core-client = { workspace = true }
 fuel-core-types = { workspace = true }

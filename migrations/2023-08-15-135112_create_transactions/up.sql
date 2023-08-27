@@ -9,18 +9,18 @@ $$;
 
 create table
   transactions (
-    id character varying(255) not null,
+    id  varchar not null,
     height BIGINT not null,
-    block_hash character varying(255) not null,
+    block_hash  varchar not null,
     tx_type tx_type null,
     da_height BIGINT not null,
     gas_limit BIGINT not null,
     gas_price BIGINT not null,
     gas_used BIGINT not null,
     timestamp BIGINT not null,
-    sender character varying(255) not null,
+    sender  varchar not null,
     status tx_status not null,
-    reason character varying(255) not null,
+    reason  varchar not null,
     input json null,
     output json null,
     receipts json null,

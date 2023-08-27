@@ -1,7 +1,13 @@
 -- Your SQL goes here
 create table
   accounts (
-    id character varying(255) not null,
-    timestamp BIGINT null,
+    id bigint,
+    account_hash varchar not null,
+    account_code text null,
+    account_name text null,
+    account_type text null,-- contract or account?
+
+    last_seen timestamp not null,
+    first_seen timestamp not null,
     constraint accounts_pkey primary key (id)
   ) tablespace pg_default;

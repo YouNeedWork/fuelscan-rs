@@ -1,9 +1,9 @@
 -- Your SQL goes here
 create table
   contracts (
-    contract_id character varying(255) not null,
-    transaction_id character varying(255) not null,
-    sender character varying(255) not null,
+    contract_id  varchar not null,
+    transaction_id  varchar not null,
+    sender  varchar not null,
     bytecode text not null,
     bytecoin_length BIGINT not null,
     storage_slots json null,

@@ -8,20 +8,20 @@ $$;
 
 create table
   calls (
-    transaction_id character varying(255) not null,
+    transaction_id  varchar not null,
     height BIGINT not null,
     da_height BIGINT not null,
-    block_hash character varying(255) not null,
+    block_hash  varchar not null,
     call_type call_type not null,
     gas_limit BIGINT not null,
     gas_price BIGINT not null,
     gas_used BIGINT not null,
     
-    sender character varying(255) not null,
-    receiver character varying(255) not null,
+    sender  varchar not null,
+    receiver  varchar not null,
 
     amount BIGINT null,
-    asset_id character varying(255) null,
+    asset_id  varchar null,
 
     payload text null,
     payload_data text null,

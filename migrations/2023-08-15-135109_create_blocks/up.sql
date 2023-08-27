@@ -1,15 +1,15 @@
 -- Your SQL goes here
 create table
   blocks (
-    id character varying(255) not null,
+    id varchar not null,
     height BIGINT not null,
     da_height BIGINT not null,
-    application_hash character varying(255) not null,
-    output_messages_root_hash character varying(255) not null,
-    transactions_root character varying(255) not null,
-    prev_root character varying(255) not null,
-    coinbase character varying(255) null,
-    coinbase_hash character varying(255) null,
+    application_hash varchar not null,
+    output_messages_root_hash varchar not null,
+    transactions_root varchar not null,
+    prev_root varchar not null,
+    coinbase varchar null,
+    coinbase_hash varchar null,
     coinbase_amount BIGINT  null,
     timestamp BIGINT not null,
     transaction_count BIGINT not null,

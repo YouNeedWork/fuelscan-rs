@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE IF EXISTS smart_contracts;
+DROP TABLE IF EXISTS address_coin_balances;

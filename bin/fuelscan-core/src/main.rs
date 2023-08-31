@@ -16,6 +16,11 @@ use crate::block_read::FetchBlockResult;
 async fn main() {
     dotenv::dotenv().ok();
 
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get())
+        .build_global()
+        .unwrap();
+
     let subscriber = FmtSubscriber::builder()
         .with_ansi(true)
         .with_level(true)

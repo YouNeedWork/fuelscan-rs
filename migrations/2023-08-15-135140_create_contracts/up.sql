@@ -1,7 +1,7 @@
 -- Your SQL goes here
 create table
-  contracts (
-    contract_id  varchar not null,
+  smart_contracts (
+    contract_hash  varchar not null,
     transaction_id  varchar not null,
     sender  varchar not null,
     bytecode text not null,
@@ -9,5 +9,5 @@ create table
     storage_slots json null,
 
     timestamp BIGINT not null,
-    constraint contracts_pkey primary key (contract_id)
+    constraint contracts_pkey primary key (contract_hash)
   ) tablespace pg_default;

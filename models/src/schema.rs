@@ -21,8 +21,38 @@ diesel::table! {
         account_code -> Nullable<Text>,
         account_name -> Nullable<Text>,
         account_type -> Nullable<Text>,
-        last_seen -> Timestamp,
-        first_seen -> Timestamp,
+        verified -> Nullable<Bool>,
+        gas_used -> Nullable<Int8>,
+        transactions_count -> Nullable<Int4>,
+        token_transfers_count -> Nullable<Int4>,
+        sender_count -> Nullable<Int4>,
+        recever_count -> Nullable<Int4>,
+        decompiled -> Nullable<Bool>,
+        inserted_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    address_coin_balances (address_hash, asset_hash, block_number) {
+        address_hash -> Varchar,
+        asset_hash -> Varchar,
+        block_number -> Int8,
+        value -> Nullable<Numeric>,
+        value_fetched_at -> Nullable<Timestamp>,
+        inserted_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    address_coin_balances_daily (address_hash, asset_hash, day) {
+        address_hash -> Varchar,
+        asset_hash -> Varchar,
+        day -> Date,
+        value -> Nullable<Numeric>,
+        inserted_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 
@@ -94,21 +124,21 @@ diesel::table! {
 }
 
 diesel::table! {
-    contracts (contract_id) {
-        contract_id -> Varchar,
+    nfts (id) {
+        id -> Varchar,
+        timestamp -> Nullable<Int8>,
+    }
+}
+
+diesel::table! {
+    smart_contracts (contract_hash) {
+        contract_hash -> Varchar,
         transaction_id -> Varchar,
         sender -> Varchar,
         bytecode -> Text,
         bytecoin_length -> Int8,
         storage_slots -> Nullable<Json>,
         timestamp -> Int8,
-    }
-}
-
-diesel::table! {
-    nfts (id) {
-        id -> Varchar,
-        timestamp -> Nullable<Int8>,
     }
 }
 
@@ -138,11 +168,13 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
     accounts,
+    address_coin_balances,
+    address_coin_balances_daily,
     assets,
     blocks,
     calls,
     coinbases,
-    contracts,
     nfts,
+    smart_contracts,
     transactions,
 );

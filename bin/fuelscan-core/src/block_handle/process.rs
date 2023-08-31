@@ -1,11 +1,14 @@
 use anyhow::Result;
 use fuel_core_client::client::{schema::block::Header, types::TransactionStatus};
-use fuel_core_types::fuel_tx::{
-    field::{
-        BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
-        ScriptData, StorageSlots, Witnesses,
+use fuel_core_types::{
+    fuel_tx::{
+        field::{
+            BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
+            ScriptData, StorageSlots, Witnesses,
+        },
+        Receipt,
     },
-    Receipt,
+    fuel_types::AssetId,
 };
 
 use models::{
@@ -188,12 +191,13 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
         .map(|(tx_hash, tx, receipts)| {
             //this is safe we already check
             let call = tx.as_ref().unwrap().transaction.as_script().unwrap();
-            dbg!(&call);
 
             let (sender, signed_asset_id) = call
                 .inputs()
                 .par_iter()
-                .find_first(|t| t.is_coin_signed() || t.is_coin_predicate())
+                .find_first(|t| {
+                    t.is_coin_signed() || t.is_coin_predicate() || t.is_message_signed()
+                })
                 .and_then(|t| match t {
                     fuel_core_types::fuel_tx::Input::CoinSigned {
                         owner, asset_id, ..
@@ -201,15 +205,9 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     fuel_core_types::fuel_tx::Input::CoinPredicate {
                         owner, asset_id, ..
                     } => Some((add_0x_prefix(owner.to_string()), asset_id)),
-                    /*                     fuel_core_types::fuel_tx::Input::MessageSigned {
-                        message_id,
-                        sender,
-                        recipient,
-                        amount,
-                        nonce,
-                        witness_index,
-                        data,
-                    } => Some((add_0x_prefix(sender.to_string()), asset_id)), */
+                    fuel_core_types::fuel_tx::Input::MessageSigned { recipient, .. } => {
+                        Some((add_0x_prefix(recipient.to_string()), &AssetId::BASE))
+                    }
                     _ => None,
                 })
                 .expect("can't find coin sign");

@@ -1,20 +1,19 @@
-use fuel_core_client::client::schema::block::Header;
-use fuel_core_client::client::types::TransactionResponse;
+use fuel_core_client::client::types::{block::Header, TransactionResponse};
 use fuel_core_client::client::FuelClient;
 
-use fuel_core_types::fuel_tx::Receipt;
+use fuel_core_types::{fuel_tx::Receipt, fuel_types::Bytes32};
 use thiserror::Error;
 use tracing::{error, info, trace};
-pub type BlockBody = (String, Option<TransactionResponse>, Vec<Receipt>);
 
-pub type BlockBodies = Vec<(String, Option<TransactionResponse>, Vec<Receipt>)>;
-
-pub type FetchBlockResult = (Header, BlockBodies);
+pub type BlockBody = (Bytes32, Option<TransactionResponse>, Option<Vec<Receipt>>);
+pub type BlockBodies = Vec<BlockBody>;
+pub type Blocks = Vec<(Header, BlockBodies)>;
+pub type FetchBlockResult = Result<(Header, BlockBodies), BlockReaderError>;
 
 pub struct BlockReader {
     batch_fetch_size: u64,
     client: FuelClient,
-    block_handler: flume::Sender<Vec<FetchBlockResult>>,
+    block_handler: flume::Sender<Blocks>,
 }
 
 impl Drop for BlockReader {
@@ -37,7 +36,7 @@ impl BlockReader {
     pub fn new(
         batch_fetch_size: u64,
         client: FuelClient,
-        block_handler: flume::Sender<Vec<FetchBlockResult>>,
+        block_handler: flume::Sender<Blocks>,
     ) -> Self {
         Self {
             batch_fetch_size,
@@ -78,10 +77,7 @@ impl BlockReader {
         }
     }
 
-    async fn fetch_block(
-        client: &FuelClient,
-        height: u64,
-    ) -> Result<FetchBlockResult, BlockReaderError> {
+    async fn fetch_block(client: &FuelClient, height: u64) -> FetchBlockResult {
         let block = match client
             .block_by_height(height)
             .await
@@ -90,7 +86,6 @@ impl BlockReader {
             Some(block) => block,
             None => {
                 trace!("no block at height {}", height);
-
                 return Err(BlockReaderError::HeightBlock(height));
             }
         };
@@ -108,21 +103,21 @@ impl BlockReader {
             .iter()
             .map(|tx_hash| async move {
                 let feat = client
-                    .transaction(&tx_hash.id.to_string())
+                    .transaction(&tx_hash)
                     .await
                     .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
                 let reseipts = client
-                    .receipts(&tx_hash.id.to_string())
+                    .receipts(&tx_hash)
                     .await
                     .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()));
-                (feat, reseipts, tx_hash.id.to_string())
+                (feat, reseipts, tx_hash)
             })
             .collect::<Vec<_>>();
         let mut transactions = vec![];
 
         let maybe_empty_txs = futures::future::join_all(txs).await;
         for (tx, reseipts, hash) in maybe_empty_txs {
-            transactions.push((hash, tx?, reseipts?));
+            transactions.push((hash.clone(), tx?, reseipts?));
         }
 
         Ok((header, transactions))

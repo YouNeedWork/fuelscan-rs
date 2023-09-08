@@ -1,12 +1,13 @@
 use anyhow::Result;
-use fuel_core_client::client::{schema::block::Header, types::TransactionStatus};
+use fuel_core_client::client::types::{block::Header, TransactionStatus};
 use fuel_core_types::{
     fuel_tx::{
         field::{
             BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
             ScriptData, StorageSlots, Witnesses,
         },
-        Receipt,
+        input::coin::Coin,
+        Input, Receipt,
     },
     fuel_types::AssetId,
 };
@@ -18,7 +19,7 @@ use models::{
     contract::Contract,
     transaction::{Transaction, TxStatus, TxType},
 };
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     block_handle::add_0x_prefix,
@@ -41,18 +42,18 @@ pub async fn process(
     let mut coinbase: Option<Coinbase> = None;
 
     if let Some((tx, coinbase_tx, _)) = coinbase_pick(bodies) {
-        block.coinbase_hash = Some(tx.clone());
+        block.coinbase_hash = Some(tx.to_string());
         if let Some(c) = coinbase_tx.clone().unwrap().transaction.as_mint() {
             block.coinbase_amount = Some(c.outputs()[0].amount().unwrap() as i64);
             block.coinbase = Some(c.outputs()[0].to().unwrap().to_string());
             coinbase = Some(Coinbase {
-                id: tx.clone(),
-                height: header.height.0 as i64,
-                da_height: header.da_height.0 as i64,
+                id: tx.to_string(),
+                height: header.height as i64,
+                da_height: header.da_height as i64,
                 block_hash: header.id.to_string(),
                 amount: block.coinbase_amount,
                 coinbase: block.coinbase.clone(),
-                timestamp: Some(header.time.0.to_unix()),
+                timestamp: Some(header.time.0 as i64),
             });
         }
     }
@@ -80,7 +81,7 @@ pub fn deploy_contract_transactions(
     bodies: &BlockBodies,
 ) -> Vec<(Transaction, Contract)> {
     //genesis block don't give any response
-    if header.transactions_count.0 == 0 {
+    if header.transactions_count == 0 {
         return vec![];
     };
 
@@ -95,23 +96,7 @@ pub fn deploy_contract_transactions(
         .map(|(tx_hash, tx, receipts)| {
             //this is safe we already check
             let create = tx.as_ref().unwrap().transaction.as_create().unwrap();
-            let sender = create
-                .inputs()
-                .iter()
-                .find(|t| t.is_coin_signed())
-                .and_then(|t| match t {
-                    fuel_core_types::fuel_tx::Input::CoinSigned {
-                        utxo_id: _,
-                        owner,
-                        amount: _,
-                        asset_id: _,
-                        tx_pointer: _,
-                        witness_index: _,
-                        maturity: _,
-                    } => Some(add_0x_prefix(owner.to_string())),
-                    _ => None,
-                })
-                .expect("can't find coin sign");
+            let sender = find_sender(create);
             let (status, reason) = match tx.clone().unwrap().status {
                 TransactionStatus::Submitted { submitted_at: _ } => unreachable!(),
                 TransactionStatus::Success {
@@ -130,18 +115,17 @@ pub fn deploy_contract_transactions(
 
             let input = serde_json::to_value(create.inputs()).ok();
             let output = serde_json::to_value(create.outputs()).ok();
-
+            let receipts = receipts.as_ref().expect("TODO: There is no receipt");
             let gas_used = receipts
-                .iter()
+                .par_iter()
                 .filter(|receipt| matches!(receipt, Receipt::ScriptResult { .. }))
                 .map(|receipt| receipt.gas_used().unwrap())
                 .sum::<u64>() as i64;
-
             (
                 Transaction {
                     id: tx_hash.to_string(),
-                    height: header.height.0 as i64,
-                    da_height: header.da_height.0 as i64,
+                    height: header.height as i64,
+                    da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Deploy),
                     gas_limit: *create.gas_limit() as i64,
@@ -174,9 +158,49 @@ pub fn deploy_contract_transactions(
         .collect::<Vec<_>>()
 }
 
+fn find_sender(create: &fuel_core_types::fuel_tx::Create) -> String {
+    //TODO add more select contation in here
+    let sender = create
+        .inputs()
+        .par_iter()
+        .find_first(|t| t.is_coin_signed())
+        .and_then(|t| match t {
+            Input::CoinSigned(Coin {
+                utxo_id: _,
+                owner,
+                amount,
+                asset_id,
+                tx_pointer,
+                witness_index,
+                maturity,
+                predicate_gas_used,
+                predicate,
+                predicate_data,
+            }) => Some(add_0x_prefix(owner.to_string())),
+            /*                     Input::CoinPredicate(_) => todo!(),
+                    Input::Contract(_) => todo!(),
+                    Input::MessageCoinSigned(_) => todo!(),
+                    Input::MessageCoinPredicate(_) => todo!(),
+                    Input::MessageDataSigned(_) => todo!(),
+                    Input::MessageDataPredicate(_) => todo!(), */
+            /* Input::Signed({
+                        utxo_id: _,
+                        owner,
+                        amount: _,
+                        asset_id: _,
+                        tx_pointer: _,
+                        witness_index: _,
+                        maturity: _,
+                    }) => Some(add_0x_prefix(owner.to_string())), */
+            _ => None,
+        })
+        .expect("can't find coin sign");
+    sender
+}
+
 pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transaction, Call)> {
     //genesis block don't give any response
-    if header.transactions_count.0 == 0 {
+    if header.transactions_count == 0 {
         return vec![];
     };
 
@@ -195,22 +219,20 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             let (sender, signed_asset_id) = call
                 .inputs()
                 .par_iter()
-                .find_first(|t| {
-                    t.is_coin_signed() || t.is_coin_predicate() || t.is_message_signed()
-                })
+                .find_first(|t| t.is_coin_signed() || t.is_coin_predicate())
                 .and_then(|t| match t {
-                    fuel_core_types::fuel_tx::Input::CoinSigned {
+                    Input::CoinSigned(Coin {
                         owner, asset_id, ..
-                    } => Some((add_0x_prefix(owner.to_string()), asset_id)),
-                    fuel_core_types::fuel_tx::Input::CoinPredicate {
+                    }) => Some((add_0x_prefix(owner.to_string()), asset_id)),
+                    Input::CoinPredicate(Coin {
                         owner, asset_id, ..
-                    } => Some((add_0x_prefix(owner.to_string()), asset_id)),
-                    fuel_core_types::fuel_tx::Input::MessageSigned { recipient, .. } => {
+                    }) => Some((add_0x_prefix(owner.to_string()), asset_id)),
+                    /*                     Input::MessageCoinSigned(Coin { recipient, .. }) => {
                         Some((add_0x_prefix(recipient.to_string()), &AssetId::BASE))
-                    }
+                    } */
                     _ => None,
                 })
-                .expect("can't find coin sign");
+                .expect("can't find coin signer"); //TODO maybe there have more when one? We need find all of them and fingout what's gas,
 
             let (status, reason) = match tx.clone().unwrap().status {
                 TransactionStatus::Submitted { submitted_at: _ } => unreachable!(),
@@ -228,8 +250,9 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                 } => (TxStatus::Failed, reason),
             };
 
+            let receipts = receipts.as_ref().expect("TODO: There is no receipt");
             let gas_used = receipts
-                .iter()
+                .par_iter()
                 .filter(|receipt| matches!(receipt, Receipt::ScriptResult { .. }))
                 .map(|receipt| receipt.gas_used().unwrap())
                 .sum::<u64>() as i64;
@@ -239,14 +262,14 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
 
             let (call_type, amount, asset_id, to, payload, payload_data) = if call
                 .outputs()
-                .iter()
+                .par_iter()
                 .any(|t| t.is_contract() || t.is_contract_created())
             {
                 let payload = call.script();
                 let payload_data = call.script_data();
                 match receipts
-                    .iter()
-                    .find(|receipt| match receipt {
+                    .par_iter()
+                    .find_first(|receipt| match receipt {
                         Receipt::Call { .. } => true,
                         Receipt::Transfer { .. } => true,
 
@@ -294,9 +317,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                 let (amount, id, to) = match call
                     .outputs()
                     .iter()
-                    .find(|t| {
-                        t.is_coin() || t.is_message() || t.is_variable() || t.is_contract_created()
-                    })
+                    .find(|t| t.is_coin() || t.is_variable() || t.is_contract_created())
                     .and_then(|t| match t {
                         //FIX:: this can be contract call or simple transfer
                         //transfer to gas coin?
@@ -312,9 +333,9 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                             to,
                         } => Some((amount, asset_id, to.to_string())),
                         //I think this is only  for the transfer ?? why this call message ?
-                        fuel_core_types::fuel_tx::Output::Message { amount, recipient } => {
+                        /* fuel_core_types::fuel_tx::Output::Message { amount, recipient } => {
                             Some((amount, signed_asset_id, recipient.to_string()))
-                        }
+                        } */
                         _ => None,
                     }) {
                     Some((amount, asset_id, address)) => {
@@ -348,8 +369,8 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             (
                 Transaction {
                     id: tx_hash.to_string(),
-                    height: header.height.0 as i64,
-                    da_height: header.da_height.0 as i64,
+                    height: header.height as i64,
+                    da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Call),
                     gas_limit: *call.gas_limit() as i64,
@@ -365,8 +386,8 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                 },
                 Call {
                     transaction_id: tx_hash.to_string(),
-                    height: header.height.0 as i64,
-                    da_height: header.da_height.0 as i64,
+                    height: header.height as i64,
+                    da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     call_type,
                     gas_limit: *call.gas_limit() as i64,

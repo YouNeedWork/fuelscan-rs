@@ -3,18 +3,17 @@ version = "0.1.0"
 edition = "2021"
 
 
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [workspace]
 members = ["bin/fuelscan-core", "bin/fuelscan-api", "models"]
-resolver="2"
+resolver = "2"
 
 
 [workspace.dependencies]
 models = { path = "models" }
 tokio = { version = "1.29.1", features = ["full"] }
-fuel-core-client = { version = "0.17.13", features = ["default", "dap"] }
-fuel-core-types = { version = "0.17.13", features = ["serde"] }
+fuel-core-client = { version = "0.20.4", features = ["default", "dap"] }
+fuel-core-types = { version = "0.20.4", features = ["serde"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 async-trait = "0.1.71"

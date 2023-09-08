@@ -1,7 +1,6 @@
-use crate::block_read::{BlockBodies, FetchBlockResult};
+use crate::block_read::{BlockBodies, Blocks};
 
-use fuel_core_client::client::schema::block::Header;
-
+use fuel_core_client::client::types::block::Header;
 use models::{
     block::batch_insert_block, call::batch_insert_calls, coinbase::batch_insert_coinbase,
     contract::batch_insert_contracts, transaction::batch_insert_transactions, PgSqlPool,
@@ -16,12 +15,7 @@ use tracing::info;
 pub mod blocks;
 pub mod process;
 
-#[derive(Clone)]
-pub struct BlockHandler {
-    db_client: PgSqlPool,
-    block_rx: flume::Receiver<Vec<FetchBlockResult>>,
-    shutdown: broadcast::Sender<()>,
-}
+pub type BlockHandleResult = Result<(), BlockHandlerError>;
 
 #[derive(Debug, Error)]
 pub enum BlockHandlerError {
@@ -34,13 +28,20 @@ pub enum BlockHandlerError {
     #[error("insert calls failed: {0}")]
     InsertCalls(String),
     #[error("failed to insert into db: {0}")]
-    InsertDb(String),
+    InsertDb(#[from(diesel::result::Error)] String),
     #[error("failed to insert into db: {0}")]
     GetPgSqlPoolFailed(String),
     /*     #[error("failed to serialize json: {0}")]
     SerdeJson(String), */
     #[error("process data error: {0}")]
     DataProcessError(String),
+}
+
+#[derive(Clone)]
+pub struct BlockHandler {
+    db_client: PgSqlPool,
+    block_rx: flume::Receiver<Blocks>,
+    shutdown: broadcast::Sender<()>,
 }
 
 impl Drop for BlockHandler {
@@ -58,7 +59,7 @@ impl From<diesel::result::Error> for BlockHandlerError {
 impl BlockHandler {
     pub fn new(
         db_client: PgSqlPool,
-        block_rx: flume::Receiver<Vec<FetchBlockResult>>,
+        block_rx: flume::Receiver<Blocks>,
         shutdown: broadcast::Sender<()>,
     ) -> Self {
         Self {

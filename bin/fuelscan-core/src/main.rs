@@ -42,7 +42,8 @@ async fn main() {
     let client =
         FuelClient::from_str("http://45.125.44.100:4000").expect("failed to create client");
 
-    dbg!(
+    tracing::info!(
+        "chain_id: {}",
         client
             .chain_info()
             .await

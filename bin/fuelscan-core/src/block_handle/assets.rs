@@ -2,7 +2,7 @@ use fuel_core_client::client::types::block::Header;
 use fuel_core_types::{
     fuel_tx::{
         field::{Inputs, Outputs},
-        Create, Mint, Script, Transaction, UniqueIdentifier, UtxoId,
+        Create, Mint, Output, Script, Transaction, UniqueIdentifier, UtxoId,
     },
     fuel_types::ChainId,
 };
@@ -42,7 +42,7 @@ fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
                     .to_string();
                 asset.asset_status = AssetStatus::Delete;
                 asset.delete_tx_hash = format!("{:x}", s.id(&ChainId::new(CHAIN_ID)));
-                //TODO: add delete tx here.
+
                 Some(asset)
             } else {
                 None
@@ -54,7 +54,10 @@ fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
         .par_iter()
         .enumerate()
         .filter_map(|(output_index, o)| {
-            if o.is_coin() {
+            if o.is_coin()
+                || matches!(o, Output::Change { .. })
+                || matches!(o, Output::Variable { .. })
+            {
                 let mut asset = Assets::default();
                 asset.assets_id = o
                     .asset_id()
@@ -112,7 +115,10 @@ fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
         .par_iter()
         .enumerate()
         .filter_map(|(output_index, o)| {
-            if o.is_coin() {
+            if o.is_coin()
+                || matches!(o, Output::Change { .. })
+                || matches!(o, Output::Variable { .. })
+            {
                 let mut asset = Assets::default();
                 asset.assets_id = o
                     .asset_id()
@@ -138,6 +144,7 @@ fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
 
 fn handle_mint(m: &Mint) -> Option<(Vec<Assets>, Vec<Assets>)> {
     let outputs = m.outputs();
+
     let insert_assets = outputs
         .par_iter()
         .enumerate()
@@ -167,7 +174,7 @@ fn handle_mint(m: &Mint) -> Option<(Vec<Assets>, Vec<Assets>)> {
 }
 
 pub fn assets_process(header: &Header, bodies: &BlockBodies) -> (Vec<Assets>, Vec<Assets>) {
-    let (mut delete, mut insert) = bodies
+    let delete_and_insert = bodies
         .par_iter()
         .filter_map(|(_, maybe_tx, _)| {
             maybe_tx.as_ref().and_then(|tx| match &tx.transaction {
@@ -176,10 +183,13 @@ pub fn assets_process(header: &Header, bodies: &BlockBodies) -> (Vec<Assets>, Ve
                 Transaction::Mint(m) => handle_mint(m),
             })
         })
-        .collect::<Vec<(Vec<Assets>, Vec<Assets>)>>()
-        .into_par_iter()
-        .flatten()
-        .collect::<(Vec<_>, Vec<_>)>();
+        .collect::<Vec<(Vec<Assets>, Vec<Assets>)>>();
+
+    let (mut delete, mut insert): (Vec<Assets>, Vec<Assets>) = (vec![], vec![]);
+    for (a, b) in delete_and_insert {
+        delete.extend(a);
+        insert.extend(b);
+    }
 
     delete.par_iter_mut().for_each(|a| {
         a.block_height = header.height as i64;

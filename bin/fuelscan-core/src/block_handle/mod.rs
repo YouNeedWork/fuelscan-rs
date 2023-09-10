@@ -12,13 +12,12 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::{select, sync::broadcast};
 use tracing::{error, info, trace};
+pub mod account;
 pub mod assets;
 pub mod blocks;
 pub mod process;
 
 pub const CHAIN_ID: u64 = 0;
-
-pub type BlockHandleResult = Result<(), BlockHandlerError>;
 
 #[derive(Debug, Error)]
 pub enum BlockHandlerError {

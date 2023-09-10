@@ -32,4 +32,5 @@ drop type if exists tx_type;
 drop type if exists tx_status;
 drop type if exists call_type;
 drop type if exists asset_status;
+drop type if exists account_type;
 ```

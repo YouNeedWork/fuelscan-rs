@@ -19,3 +19,4 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
 fuel-core-client = { workspace = true, features = ["default", "dap"] }
+derive_builder = { workspace = true }

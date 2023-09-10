@@ -3,10 +3,13 @@ use diesel::{
     PgConnection,
 };
 
-pub mod call;
+#[macro_use]
+extern crate derive_builder;
 
+pub mod account;
 pub mod assets;
 pub mod block;
+pub mod call;
 pub mod coinbase;
 pub mod contract;
 pub mod schema;

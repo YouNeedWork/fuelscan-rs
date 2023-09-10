@@ -25,6 +25,7 @@ flume = { workspace = true }
 diesel = { workspace = true }
 rayon = { workspace = true }
 num_cpus = { workspace = true }
+derive_builder = { workspace = true }
 
 [profile.dev]
 opt-level = 1           # Use slightly better optimizations.

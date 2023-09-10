@@ -2,6 +2,10 @@
 
 pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "account_type"))]
+    pub struct AccountType;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "asset_status"))]
     pub struct AssetStatus;
 
@@ -19,12 +23,14 @@ pub mod sql_types {
 }
 
 diesel::table! {
-    accounts (id) {
-        id -> Int8,
+    use diesel::sql_types::*;
+    use super::sql_types::AccountType;
+
+    accounts (account_hash) {
         account_hash -> Varchar,
         account_code -> Nullable<Text>,
         account_name -> Nullable<Text>,
-        account_type -> Nullable<Text>,
+        account_type -> AccountType,
         verified -> Bool,
         gas_used -> Int8,
         transactions_count -> Int8,

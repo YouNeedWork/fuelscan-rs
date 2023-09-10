@@ -40,9 +40,9 @@ async fn main() {
     let (block_handler_tx, block_handler_rx) = unbounded::<Blocks>();
 
     let client =
-        FuelClient::from_str("https://beta-4.fuel.network").expect("failed to create client");
+        FuelClient::from_str("http://45.125.44.100:4000").expect("failed to create client");
 
-    let mut block_read = BlockReader::new(20, client, block_handler_tx);
+    let mut block_read = BlockReader::new(50, client, block_handler_tx);
     let height = get_last_block_height(&mut pool.get().unwrap()) as u64;
 
     tokio::spawn(async move {
@@ -55,8 +55,7 @@ async fn main() {
     });
 
     let block_handle = block_handle::BlockHandler::new(pool, block_handler_rx, shutdown_tx.clone());
-
-    for _ in 0..10 {
+    for _ in 0..num_cpus::get() {
         let mut block_handle = block_handle.clone();
         tokio::spawn(async move {
             match block_handle.start().await {

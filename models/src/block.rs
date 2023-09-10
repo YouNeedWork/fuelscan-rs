@@ -40,7 +40,7 @@ pub fn get_last_block_height(connection: &mut PgConnection) -> i64 {
     blocks
         .select(max(height))
         .first::<Option<i64>>(connection)
-        .unwrap_or(Some(0))
+        .unwrap_or(Some(1000000))
         .map(|h| h + 1)
         .unwrap_or_default()
 }

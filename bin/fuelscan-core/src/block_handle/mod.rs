@@ -11,7 +11,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::{select, sync::broadcast};
 use tracing::info;
-
+pub mod assets;
 pub mod blocks;
 pub mod process;
 

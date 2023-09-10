@@ -59,8 +59,8 @@ diesel::table! {
 diesel::table! {
     assets (id) {
         id -> Int8,
-        asset_id -> Varchar,
-        asset_hash -> Varchar,
+        assets_id -> Varchar,
+        assets_hash -> Varchar,
         amount -> Int8,
         block_height -> Int8,
         create_height -> Int8,

@@ -67,13 +67,12 @@ impl BlockReader {
             }
 
             height += blocks.len() as u64;
-
             self.block_handler
                 .send(blocks)
                 .map_err(|e| BlockReaderError::SendToHandler(e.to_string()))?;
 
-            info!("Indexer Height {} wait for 2 secs", height);
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            info!("Indexer Height {} wait for 500 millis", height);
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
     }
 

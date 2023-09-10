@@ -5,6 +5,7 @@ use diesel::{
 
 pub mod call;
 
+pub mod assets;
 pub mod block;
 pub mod coinbase;
 pub mod contract;

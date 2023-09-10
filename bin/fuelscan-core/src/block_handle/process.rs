@@ -26,7 +26,7 @@ use crate::{
     block_read::{BlockBodies, BlockBody},
 };
 
-use super::blocks::init_block_by_with_header;
+use super::{assets::assets_process, blocks::init_block_by_with_header};
 
 pub async fn process(
     header: &Header,
@@ -73,6 +73,8 @@ pub async fn process(
         calls.push(call);
     }
 
+    let _assrts = assets_process(header, bodies);
+
     Ok((block, coinbase, transactions, contracts, calls))
 }
 
@@ -86,13 +88,13 @@ pub fn deploy_contract_transactions(
     };
 
     let contract_txs = bodies
-        .iter()
+        .par_iter()
         .filter(|tx| tx.1.as_ref().is_some())
         .filter(|tx| tx.1.as_ref().unwrap().transaction.is_create())
         .collect::<Vec<_>>();
 
     contract_txs
-        .iter()
+        .par_iter()
         .map(|(tx_hash, tx, receipts)| {
             //this is safe we already check
             let create = tx.as_ref().unwrap().transaction.as_create().unwrap();
@@ -165,18 +167,7 @@ fn find_sender(create: &fuel_core_types::fuel_tx::Create) -> String {
         .par_iter()
         .find_first(|t| t.is_coin_signed())
         .and_then(|t| match t {
-            Input::CoinSigned(Coin {
-                utxo_id: _,
-                owner,
-                amount,
-                asset_id,
-                tx_pointer,
-                witness_index,
-                maturity,
-                predicate_gas_used,
-                predicate,
-                predicate_data,
-            }) => Some(add_0x_prefix(owner.to_string())),
+            Input::CoinSigned(Coin { owner, .. }) => Some(add_0x_prefix(owner.to_string())),
             /*                     Input::CoinPredicate(_) => todo!(),
                     Input::Contract(_) => todo!(),
                     Input::MessageCoinSigned(_) => todo!(),
@@ -205,13 +196,13 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
     };
 
     let contract_txs = bodies
-        .iter()
+        .par_iter()
         .filter(|tx| tx.1.as_ref().is_some())
         .filter(|tx| tx.1.as_ref().unwrap().transaction.is_script())
         .collect::<Vec<_>>();
 
     contract_txs
-        .iter()
+        .par_iter()
         .map(|(tx_hash, tx, receipts)| {
             //this is safe we already check
             let call = tx.as_ref().unwrap().transaction.as_script().unwrap();
@@ -316,8 +307,8 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             } else {
                 let (amount, id, to) = match call
                     .outputs()
-                    .iter()
-                    .find(|t| t.is_coin() || t.is_variable() || t.is_contract_created())
+                    .par_iter()
+                    .find_first(|t| t.is_coin() || t.is_variable() || t.is_contract_created())
                     .and_then(|t| match t {
                         //FIX:: this can be contract call or simple transfer
                         //transfer to gas coin?
@@ -408,9 +399,9 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
 
 pub fn coinbase_pick(bodies: &BlockBodies) -> Option<&BlockBody> {
     bodies
-        .iter()
-        .find(|tx| tx.1.is_some())
-        .iter()
-        .find(|tx| tx.1.clone().unwrap().transaction.is_mint())
+        .par_iter()
+        .find_first(|tx| tx.1.is_some())
+        .par_iter()
+        .find_first(|tx| tx.1.clone().unwrap().transaction.is_mint())
         .cloned()
 }

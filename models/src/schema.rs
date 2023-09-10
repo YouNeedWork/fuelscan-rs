@@ -2,6 +2,10 @@
 
 pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "asset_status"))]
+    pub struct AssetStatus;
+
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "call_type"))]
     pub struct CallType;
 
@@ -57,16 +61,21 @@ diesel::table! {
 }
 
 diesel::table! {
-    assets (id) {
-        id -> Int8,
+    use diesel::sql_types::*;
+    use super::sql_types::AssetStatus;
+
+    assets (assets_utxo_id) {
+        assets_utxo_id -> Varchar,
         assets_id -> Varchar,
-        assets_hash -> Varchar,
+        assets_owner -> Varchar,
         amount -> Int8,
         block_height -> Int8,
         create_height -> Int8,
         create_tx_hash -> Varchar,
+        delete_tx_hash -> Varchar,
         last_seen -> Timestamp,
         first_seen -> Timestamp,
+        asset_status -> AssetStatus,
     }
 }
 

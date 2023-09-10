@@ -25,3 +25,13 @@ flume = { workspace = true }
 diesel = { workspace = true }
 rayon = { workspace = true }
 num_cpus = { workspace = true }
+
+[profile.dev]
+opt-level = 1           # Use slightly better optimizations.
+overflow-checks = false # Disable integer overflow checks.
+panic = 'abort'         # Abort on panic.
+
+[profile.release]
+debug = 1
+panic = 'abort'
+lto = true

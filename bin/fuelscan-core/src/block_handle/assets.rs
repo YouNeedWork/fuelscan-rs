@@ -1,33 +1,48 @@
-use anyhow::Result;
 use fuel_core_client::client::types::block::Header;
-use fuel_core_types::fuel_tx::{
-    field::{Inputs, Outputs},
-    Create, Script, Transaction,
+use fuel_core_types::{
+    fuel_tx::{
+        field::{Inputs, Outputs},
+        Create, Mint, Script, Transaction, UniqueIdentifier, UtxoId,
+    },
+    fuel_types::ChainId,
 };
-use models::assets::Assets;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+
+use models::assets::{AssetStatus, Assets};
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
+    IntoParallelRefMutIterator, ParallelIterator,
+};
 
 use crate::block_read::BlockBodies;
 
-fn handle_script(s: &Script) -> Option<Assets> {
-    let mut result = vec![];
+use super::CHAIN_ID;
+
+// delete inputs utxo_id
+// and store output utxo_id
+fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
+    //let mut result = vec![];
 
     let inputs = s.inputs();
     let outputs = s.outputs();
-    let gas_asset = inputs
+    let delete_assets = inputs
         .par_iter()
         .filter_map(|i| {
             if i.is_coin_signed() || i.is_coin_predicate() || i.is_coin() {
                 let input_coin = i.utxo_id().expect("unreachable");
                 let mut asset = Assets::default();
-                let output_index = input_coin.output_index();
-                asset.assets_id = input_coin.tx_id().to_string();
-                asset.assets_hash = i
+
+                asset.assets_utxo_id = format!("{:x}", input_coin);
+                asset.assets_owner = i
+                    .input_owner()
+                    .expect("failed find sender with input")
+                    .to_string();
+                asset.assets_id = i
                     .asset_id()
                     .expect("failed find asset_id with input")
                     .to_string();
-                let output = outputs.get(output_index as usize).expect("unreachable");
-                asset.amount = output.amount().expect("failed find amount with output") as i64;
+                asset.asset_status = AssetStatus::Delete;
+                asset.delete_tx_hash = format!("{:x}", s.id(&ChainId::new(CHAIN_ID)));
+                //TODO: add delete tx here.
                 Some(asset)
             } else {
                 None
@@ -35,16 +50,23 @@ fn handle_script(s: &Script) -> Option<Assets> {
         })
         .collect::<Vec<_>>();
 
-    result.extend(gas_asset);
-    let create_coin = outputs
+    let insert_assets = outputs
         .par_iter()
-        .filter_map(|o| {
+        .enumerate()
+        .filter_map(|(output_index, o)| {
             if o.is_coin() {
                 let mut asset = Assets::default();
-                asset.assets_hash = o
+                asset.assets_id = o
                     .asset_id()
                     .expect("failed find asset_id with output")
                     .to_string();
+
+                asset.assets_utxo_id = format!(
+                    "{:x}",
+                    UtxoId::new(s.id(&ChainId::new(CHAIN_ID)), output_index as u8)
+                );
+
+                asset.assets_owner = o.to().expect("failed find to with output").to_string();
                 asset.amount = o.amount().expect("failed find amount with output") as i64;
                 Some(asset)
             } else {
@@ -52,35 +74,124 @@ fn handle_script(s: &Script) -> Option<Assets> {
             }
         })
         .collect::<Vec<_>>();
-    result.extend(create_coin);
 
-    dbg!(result);
-    None
+    Some((delete_assets, insert_assets))
 }
 
-fn handle_create(c: &Create) -> Option<Assets> {
+fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
     let inputs = c.inputs();
     let outputs = c.outputs();
-    inputs.par_iter().for_each(|i| {
-        println!("input: {:?}", i);
-        outputs.par_iter().for_each(|o| {
-            println!("output: {:?}", o);
-        });
-    });
-    None
+    let delete_assets = inputs
+        .par_iter()
+        .filter_map(|i| {
+            if i.is_coin_signed() || i.is_coin_predicate() || i.is_coin() {
+                let input_coin = i.utxo_id().expect("unreachable");
+                let mut asset = Assets::default();
+
+                asset.assets_utxo_id = format!("{:x}", input_coin);
+                asset.assets_owner = i
+                    .input_owner()
+                    .expect("failed find sender with input")
+                    .to_string();
+                asset.assets_id = i
+                    .asset_id()
+                    .expect("failed find asset_id with input")
+                    .to_string();
+
+                asset.asset_status = AssetStatus::Delete;
+                asset.delete_tx_hash = format!("{:x}", c.id(&ChainId::new(CHAIN_ID)));
+
+                Some(asset)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let insert_assets = outputs
+        .par_iter()
+        .enumerate()
+        .filter_map(|(output_index, o)| {
+            if o.is_coin() {
+                let mut asset = Assets::default();
+                asset.assets_id = o
+                    .asset_id()
+                    .expect("failed find asset_id with output")
+                    .to_string();
+
+                asset.assets_utxo_id = format!(
+                    "{:x}",
+                    UtxoId::new(c.id(&ChainId::new(CHAIN_ID)), output_index as u8)
+                );
+                asset.create_tx_hash = c.id(&ChainId::new(CHAIN_ID)).to_string();
+                asset.assets_owner = o.to().expect("failed find to with output").to_string();
+                asset.amount = o.amount().expect("failed find amount with output") as i64;
+                Some(asset)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Some((delete_assets, insert_assets))
 }
 
-pub fn assets_process(header: &Header, bodies: &BlockBodies) -> Result<Vec<Assets>> {
-    let result = bodies
+fn handle_mint(m: &Mint) -> Option<(Vec<Assets>, Vec<Assets>)> {
+    let outputs = m.outputs();
+    let insert_assets = outputs
+        .par_iter()
+        .enumerate()
+        .filter_map(|(output_index, o)| {
+            if o.is_coin() {
+                let mut asset = Assets::default();
+                asset.assets_id = o
+                    .asset_id()
+                    .expect("failed find asset_id with output")
+                    .to_string();
+
+                asset.assets_utxo_id = format!(
+                    "{:x}",
+                    UtxoId::new(m.id(&ChainId::new(CHAIN_ID)), output_index as u8)
+                );
+                asset.create_tx_hash = m.id(&ChainId::new(CHAIN_ID)).to_string();
+                asset.assets_owner = o.to().expect("failed find to with output").to_string();
+                asset.amount = o.amount().expect("failed find amount with output") as i64;
+                Some(asset)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Some((vec![], insert_assets))
+}
+
+pub fn assets_process(header: &Header, bodies: &BlockBodies) -> (Vec<Assets>, Vec<Assets>) {
+    let (mut delete, mut insert) = bodies
         .par_iter()
         .filter_map(|(_, maybe_tx, _)| {
             maybe_tx.as_ref().and_then(|tx| match &tx.transaction {
                 Transaction::Script(s) => handle_script(s),
                 Transaction::Create(c) => handle_create(c),
-                Transaction::Mint(_) => None,
+                Transaction::Mint(m) => handle_mint(m),
             })
         })
-        .collect::<Vec<Assets>>();
+        .collect::<Vec<(Vec<Assets>, Vec<Assets>)>>()
+        .into_par_iter()
+        .flatten()
+        .collect::<(Vec<_>, Vec<_>)>();
 
-    Ok(result)
+    delete.par_iter_mut().for_each(|a| {
+        a.block_height = header.height as i64;
+        a.create_height = header.height as i64;
+        //TODO: handle first_seen and last_seen
+    });
+
+    insert.par_iter_mut().for_each(|a| {
+        a.block_height = header.height as i64;
+        a.create_height = header.height as i64;
+        //TODO: handle first_seen and last_seen
+    });
+
+    (delete, insert)
 }

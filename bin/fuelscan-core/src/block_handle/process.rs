@@ -1,25 +1,23 @@
 use anyhow::Result;
 use fuel_core_client::client::types::{block::Header, TransactionStatus};
-use fuel_core_types::{
-    fuel_tx::{
-        field::{
-            BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
-            ScriptData, StorageSlots, Witnesses,
-        },
-        input::coin::Coin,
-        Input, Receipt,
+use fuel_core_types::fuel_tx::{
+    field::{
+        BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
+        ScriptData, StorageSlots, Witnesses,
     },
-    fuel_types::AssetId,
+    input::coin::Coin,
+    Input, Receipt,
 };
 
 use models::{
+    assets::Assets,
     block::Block,
     call::{Call, CallType},
     coinbase::Coinbase,
     contract::Contract,
     transaction::{Transaction, TxStatus, TxType},
 };
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
     block_handle::add_0x_prefix,
@@ -37,6 +35,7 @@ pub async fn process(
     Vec<Transaction>,
     Vec<Contract>,
     Vec<Call>,
+    (Vec<Assets>, Vec<Assets>),
 )> {
     let mut block = init_block_by_with_header(header);
     let mut coinbase: Option<Coinbase> = None;
@@ -73,9 +72,9 @@ pub async fn process(
         calls.push(call);
     }
 
-    let _assrts = assets_process(header, bodies);
+    let assrts = assets_process(header, bodies);
 
-    Ok((block, coinbase, transactions, contracts, calls))
+    Ok((block, coinbase, transactions, contracts, calls, assrts))
 }
 
 pub fn deploy_contract_transactions(

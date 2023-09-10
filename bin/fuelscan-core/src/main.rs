@@ -42,6 +42,15 @@ async fn main() {
     let client =
         FuelClient::from_str("http://45.125.44.100:4000").expect("failed to create client");
 
+    dbg!(
+        client
+            .chain_info()
+            .await
+            .expect("failed to fetch chain_info")
+            .consensus_parameters
+            .chain_id
+    );
+
     let mut block_read = BlockReader::new(50, client, block_handler_tx);
     let height = get_last_block_height(&mut pool.get().unwrap()) as u64;
 

@@ -2,18 +2,21 @@ use crate::block_read::{BlockBodies, Blocks};
 
 use fuel_core_client::client::types::block::Header;
 use models::{
-    block::batch_insert_block, call::batch_insert_calls, coinbase::batch_insert_coinbase,
-    contract::batch_insert_contracts, transaction::batch_insert_transactions, PgSqlPool,
+    assets::batch_insert_assets, block::batch_insert_block, call::batch_insert_calls,
+    coinbase::batch_insert_coinbase, contract::batch_insert_contracts,
+    transaction::batch_insert_transactions, PgSqlPool,
 };
 
 use crate::block_handle::process::process;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::{select, sync::broadcast};
-use tracing::info;
+use tracing::{error, info, trace};
 pub mod assets;
 pub mod blocks;
 pub mod process;
+
+pub const CHAIN_ID: u64 = 0;
 
 pub type BlockHandleResult = Result<(), BlockHandlerError>;
 
@@ -27,6 +30,8 @@ pub enum BlockHandlerError {
     InsertContract(String),
     #[error("insert calls failed: {0}")]
     InsertCalls(String),
+    #[error("insert assets failed: {0}")]
+    InsertAssets(String),
     #[error("failed to insert into db: {0}")]
     InsertDb(#[from(diesel::result::Error)] String),
     #[error("failed to insert into db: {0}")]
@@ -46,7 +51,7 @@ pub struct BlockHandler {
 
 impl Drop for BlockHandler {
     fn drop(&mut self) {
-        info!("BlockHandler drop");
+        trace!("BlockHandler drop");
     }
 }
 
@@ -79,9 +84,10 @@ impl BlockHandler {
             .get()
             .map_err(|e| BlockHandlerError::GetPgSqlPoolFailed(e.to_string()))?;
 
-        let (block, coinbase, transactions, contracts, calls) = process(header, bodies)
-            .await
-            .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
+        let (block, coinbase, transactions, contracts, calls, (assets_delete, assets_insert)) =
+            process(header, bodies)
+                .await
+                .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
         conn.build_transaction()
             .read_write()
@@ -94,6 +100,7 @@ impl BlockHandler {
                     batch_insert_coinbase(conn, &vec![c])
                         .map_err(|e| BlockHandlerError::InsertHeaderDb(e.to_string()))?;
                 }
+
                 batch_insert_transactions(conn, &transactions)
                     .map_err(|e| BlockHandlerError::InsertTransactionDb(e.to_string()))?;
 
@@ -102,6 +109,12 @@ impl BlockHandler {
 
                 batch_insert_calls(conn, &calls)
                     .map_err(|e| BlockHandlerError::InsertCalls(e.to_string()))?;
+
+                batch_insert_assets(conn, &assets_delete)
+                    .map_err(|e| BlockHandlerError::InsertAssets(e.to_string()))?;
+
+                batch_insert_assets(conn, &assets_insert)
+                    .map_err(|e| BlockHandlerError::InsertAssets(e.to_string()))?;
                 Ok(())
             })
     }
@@ -114,13 +127,13 @@ impl BlockHandler {
                 Ok(blocks) = self.block_rx.recv_async() => {
                     for (header, transactions) in blocks {
                         while let Err(e) = self.insert_header_and_txs(&header,&transactions).await {
-                            info!("insert_header_and_tx failed {}, retrying",e.to_string());
+                            error!("insert_header_and_tx failed {}, retrying",e.to_string());
                             tokio::time::sleep(Duration::from_secs(1)).await;
                         }
                     }
                 }
                 _ = shutdown.recv() => {
-                    info!("BlockHandler shutdown");
+                    trace!("BlockHandler shutdown");
                     return Ok(());
                 }
             }

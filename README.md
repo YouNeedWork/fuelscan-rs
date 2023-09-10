@@ -23,7 +23,13 @@ drop table if exists transactions;
 drop table if exists coinbases;
 drop table if exists contracts;
 drop table if exists nfts;
+drop table if exists __diesel_schema_migrations;
+drop table if exists address_coin_balances;
+drop table if exists address_coin_balances_daily;
+drop table if exists smart_contracts;
+
 drop type if exists tx_type;
 drop type if exists tx_status;
 drop type if exists call_type;
+drop type if exists asset_status;
 ```

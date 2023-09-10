@@ -59,7 +59,10 @@ impl Default for Account {
     }
 }
 
-pub fn batch_insert_assets(connection: &mut PgConnection, records: &Vec<Account>) -> Result<usize> {
+pub fn batch_insert_accounts(
+    connection: &mut PgConnection,
+    records: &Vec<Account>,
+) -> Result<usize> {
     insert_into(accounts::table)
         .values(records)
         .on_conflict(accounts::account_hash)

@@ -2,8 +2,8 @@ use crate::block_read::{BlockBodies, Blocks};
 
 use fuel_core_client::client::types::block::Header;
 use models::{
-    assets::batch_insert_assets, block::batch_insert_block, call::batch_insert_calls,
-    coinbase::batch_insert_coinbase, contract::batch_insert_contracts,
+    account::batch_insert_accounts, assets::batch_insert_assets, block::batch_insert_block,
+    call::batch_insert_calls, coinbase::batch_insert_coinbase, contract::batch_insert_contracts,
     transaction::batch_insert_transactions, PgSqlPool,
 };
 
@@ -12,6 +12,8 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::{select, sync::broadcast};
 use tracing::{error, info, trace};
+
+use self::account::process_account;
 
 pub mod account;
 pub mod assets;
@@ -32,6 +34,8 @@ pub enum BlockHandlerError {
     InsertCalls(String),
     #[error("insert assets failed: {0}")]
     InsertAssets(String),
+    #[error("insert accounts failed: {0}")]
+    InsertAccounts(String),
     #[error("failed to insert into db: {0}")]
     InsertDb(#[from(diesel::result::Error)] String),
     #[error("failed to insert into db: {0}")]
@@ -89,6 +93,9 @@ impl BlockHandler {
                 .await
                 .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
+        let accounts = process_account(&calls);
+        dbg!(&accounts);
+
         conn.build_transaction()
             .read_write()
             .serializable()
@@ -115,6 +122,9 @@ impl BlockHandler {
 
                 batch_insert_assets(conn, &assets_insert)
                     .map_err(|e| BlockHandlerError::InsertAssets(e.to_string()))?;
+
+                batch_insert_accounts(conn, &accounts)
+                    .map_err(|e| BlockHandlerError::InsertAccounts(e.to_string()))?;
                 Ok(())
             })
     }

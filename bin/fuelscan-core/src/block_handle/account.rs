@@ -2,9 +2,7 @@ use models::{
     account::{Account, AccountType},
     call::{Call, CallType},
 };
-use rayon::prelude::{
-    IntoParallelIterator, IntoParallelRefIterator, ParallelDrainFull, ParallelIterator,
-};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 pub fn process_account(calls: &Vec<Call>) -> Vec<Account> {
     let mut accounts = Vec::new();
@@ -35,6 +33,7 @@ pub fn process_account(calls: &Vec<Call>) -> Vec<Account> {
     }
     // fillter save hash and put all count in to one
     let mut account_map = std::collections::HashMap::new();
+
     for account in accounts {
         let account_hash = account.account_hash.clone();
         if account_map.contains_key(&account_hash) {

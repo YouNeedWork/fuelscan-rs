@@ -1,4 +1,3 @@
-#[allow(implied_bounds_entailment)]
 use anyhow::Result;
 
 use diesel::{insert_into, Insertable, PgConnection, RunQueryDsl};

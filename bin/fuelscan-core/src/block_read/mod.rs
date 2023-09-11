@@ -2,6 +2,7 @@ use fuel_core_client::client::types::{block::Header, TransactionResponse};
 use fuel_core_client::client::FuelClient;
 
 use fuel_core_types::{fuel_tx::Receipt, fuel_types::Bytes32};
+use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use thiserror::Error;
 use tracing::{error, info, trace};
 
@@ -52,18 +53,21 @@ impl BlockReader {
                 .collect::<Vec<_>>();
 
             let maybe_blocks = futures::future::join_all(fetch_feat).await;
-            let mut blocks = vec![];
-            for block in maybe_blocks {
-                match block {
-                    Ok(block) => {
-                        blocks.push(block);
-                    }
-                    Err(e) => {
-                        error!("Got Rpc error {},retry in 2 secs", e);
-                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                        continue;
-                    }
-                }
+            let blocks = maybe_blocks
+                .into_par_iter()
+                .filter_map(|block| match block {
+                    Ok(block) => Some(block),
+                    Err(_) => None,
+                })
+                .collect::<Vec<_>>();
+
+            if blocks.len() == 0 {
+                info!("No blocks fetched, maybe the rpc is down");
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                continue;
+            } else if (blocks.len() as u64) < self.batch_fetch_size {
+                info!("Adjust batch fetch size to {}", blocks.len());
+                self.batch_fetch_size = blocks.len() as u64;
             }
 
             height += blocks.len() as u64;

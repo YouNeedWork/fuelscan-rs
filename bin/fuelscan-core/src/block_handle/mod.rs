@@ -94,7 +94,6 @@ impl BlockHandler {
                 .map_err(|e| BlockHandlerError::DataProcessError(e.to_string()))?;
 
         let accounts = process_account(&calls);
-        dbg!(&accounts);
 
         conn.build_transaction()
             .read_write()

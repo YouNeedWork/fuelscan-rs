@@ -10,8 +10,6 @@ use tracing_subscriber::FmtSubscriber;
 mod block_handle;
 mod block_read;
 
-use crate::block_read::FetchBlockResult;
-
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();

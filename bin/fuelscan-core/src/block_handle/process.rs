@@ -166,7 +166,7 @@ fn find_sender(create: &fuel_core_types::fuel_tx::Create) -> String {
         .par_iter()
         .find_first(|t| t.is_coin_signed())
         .and_then(|t| match t {
-            Input::CoinSigned(Coin { owner, .. }) => Some(add_0x_prefix(owner.to_string())),
+            Input::CoinSigned(Coin { owner, .. }) => Some(owner.to_string()),
             /*                     Input::CoinPredicate(_) => todo!(),
                     Input::Contract(_) => todo!(),
                     Input::MessageCoinSigned(_) => todo!(),
@@ -213,10 +213,10 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                 .and_then(|t| match t {
                     Input::CoinSigned(Coin {
                         owner, asset_id, ..
-                    }) => Some((add_0x_prefix(owner.to_string()), asset_id)),
+                    }) => Some((owner.to_string(), asset_id)),
                     Input::CoinPredicate(Coin {
                         owner, asset_id, ..
-                    }) => Some((add_0x_prefix(owner.to_string()), asset_id)),
+                    }) => Some((owner.to_string(), asset_id)),
                     /*                     Input::MessageCoinSigned(Coin { recipient, .. }) => {
                         Some((add_0x_prefix(recipient.to_string()), &AssetId::BASE))
                     } */
@@ -283,7 +283,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                         CallType::Contract,
                         Some(*amount as i64),
                         Some(asset_id.to_string()),
-                        add_0x_prefix(to.to_string()),
+                        to.to_string(),
                         Some(hex::encode(payload)),
                         Some(hex::encode(payload_data)),
                     ),
@@ -297,7 +297,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                         CallType::Contract,
                         Some(*amount as i64),
                         Some(asset_id.to_string()),
-                        add_0x_prefix(id.to_string()),
+                        id.to_string(),
                         Some(hex::encode(payload)),
                         Some(hex::encode(payload_data)),
                     ),
@@ -350,7 +350,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     CallType::Transaction,
                     amount,
                     id,
-                    add_0x_prefix(to.to_string()),
+                    to.to_string(),
                     payload,
                     payload_data,
                 )

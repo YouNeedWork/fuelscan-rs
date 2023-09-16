@@ -11,7 +11,7 @@ use crate::block_handle::process::process;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::{select, sync::broadcast};
-use tracing::{error, info, trace};
+use tracing::{error, trace};
 
 use self::account::process_account;
 
@@ -148,12 +148,4 @@ impl BlockHandler {
             }
         }
     }
-}
-
-pub fn add_0x_prefix(mut addr: String) -> String {
-    if !addr.starts_with("0x") {
-        addr.insert_str(0, "0x");
-    }
-
-    addr
 }

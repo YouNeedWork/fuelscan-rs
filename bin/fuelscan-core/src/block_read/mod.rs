@@ -2,7 +2,7 @@ use fuel_core_client::client::types::{block::Header, TransactionResponse};
 use fuel_core_client::client::FuelClient;
 
 use fuel_core_types::{fuel_tx::Receipt, fuel_types::Bytes32};
-use rayon::prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
 use tracing::{error, info, trace};
 

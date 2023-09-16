@@ -19,10 +19,7 @@ use models::{
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{
-    block_handle::add_0x_prefix,
-    block_read::{BlockBodies, BlockBody},
-};
+use crate::block_read::{BlockBodies, BlockBody};
 
 use super::{assets::assets_process, blocks::init_block_by_with_header};
 
@@ -181,7 +178,7 @@ fn find_sender(create: &fuel_core_types::fuel_tx::Create) -> String {
                         tx_pointer: _,
                         witness_index: _,
                         maturity: _,
-                    }) => Some(add_0x_prefix(owner.to_string())), */
+                    }) => Some(owner.to_string()), */
             _ => None,
         })
         .expect("can't find coin sign");
@@ -206,7 +203,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             //this is safe we already check
             let call = tx.as_ref().unwrap().transaction.as_script().unwrap();
 
-            let (sender, signed_asset_id) = call
+            let (sender, _signed_asset_id) = call
                 .inputs()
                 .par_iter()
                 .find_first(|t| t.is_coin_signed() || t.is_coin_predicate())
@@ -218,7 +215,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                         owner, asset_id, ..
                     }) => Some((owner.to_string(), asset_id)),
                     /*                     Input::MessageCoinSigned(Coin { recipient, .. }) => {
-                        Some((add_0x_prefix(recipient.to_string()), &AssetId::BASE))
+                        Some((recipient.to_string(), &AssetId::BASE))
                     } */
                     _ => None,
                 })

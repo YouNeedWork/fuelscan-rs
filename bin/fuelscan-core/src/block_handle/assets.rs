@@ -9,8 +9,7 @@ use fuel_core_types::{
 
 use models::assets::{AssetStatus, Assets};
 use rayon::prelude::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator,
-    IntoParallelRefMutIterator, ParallelIterator,
+    IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator,
 };
 
 use crate::block_read::BlockBodies;

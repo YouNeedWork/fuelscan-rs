@@ -1,5 +1,5 @@
 [package]
-name = "fuelscan-core"
+name = "fuelscan"
 version.workspace = true
 edition.workspace = true
 

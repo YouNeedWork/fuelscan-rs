@@ -8,7 +8,6 @@ edition = "2021"
 members = ["bin/fuelscan","models"]
 resolver = "2"
 
-
 [workspace.dependencies]
 models = { path = "models" }
 tokio = { version = "1.29.1", features = ["full"] }
@@ -41,3 +40,14 @@ diesel = { version = "2.0.3", features = [
 diesel-async = { version = "0.2.1", features = ["postgres"] }
 diesel-derive-enum = { version = "^2.0.1", features = ["postgres"] }
 derive_builder = "0.12.0"
+
+
+[profile.dev]
+opt-level = 1           # Use slightly better optimizations.
+overflow-checks = false # Disable integer overflow checks.
+panic = 'abort'         # Abort on panic.
+
+[profile.release]
+debug = 1
+panic = 'abort'
+lto = true

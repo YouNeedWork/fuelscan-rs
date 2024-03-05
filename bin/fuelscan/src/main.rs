@@ -40,6 +40,17 @@ async fn main() {
     let client = FuelClient::from_str(&rpc).expect("failed to create client");
 
     tracing::info!(
+        "{}",
+        client
+            .chain_info()
+            .await
+            .expect("failed to fetch chain_info")
+            .latest_block
+            .header
+            .height
+    );
+
+    tracing::info!(
         "chain_id: {}",
         client
             .chain_info()

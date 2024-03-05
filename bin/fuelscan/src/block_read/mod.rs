@@ -26,7 +26,7 @@ impl Drop for BlockReader {
 #[derive(Error, Debug)]
 pub enum BlockReaderError {
     #[error("The latest height block: {0}")]
-    HeightBlock(u64),
+    HeightBlock(u32),
     #[error("Read block info from rpc failed: {0}")]
     ReadFromRpc(String),
     #[error("Sender failed the Handler channel maybe closed: {0}")]
@@ -49,7 +49,7 @@ impl BlockReader {
     pub async fn start(&mut self, mut height: u64) -> Result<(), BlockReaderError> {
         loop {
             let fetch_feat = (height..(height + self.batch_fetch_size))
-                .map(|h| Self::fetch_block(&self.client, h))
+                .map(|h| Self::fetch_block(&self.client, h as u32))
                 .collect::<Vec<_>>();
 
             let maybe_blocks = futures::future::join_all(fetch_feat).await;
@@ -80,7 +80,7 @@ impl BlockReader {
         }
     }
 
-    async fn fetch_block(client: &FuelClient, height: u64) -> FetchBlockResult {
+    async fn fetch_block(client: &FuelClient, height: u32) -> FetchBlockResult {
         let block = match client
             .block_by_height(height)
             .await

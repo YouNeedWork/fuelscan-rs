@@ -5,12 +5,12 @@ edition.workspace = true
 
 [dependencies]
 diesel = { version = "2.0.3", features = [
-    "postgres",
-    "r2d2",
-    "serde_json",
-    "numeric",
-    "chrono",
-    "postgres_backend",
+  "postgres",
+  "r2d2",
+  "serde_json",
+  "numeric",
+  "chrono",
+  "postgres_backend",
 ] }
 diesel-async = { workspace = true }
 diesel-derive-enum = { workspace = true, features = ["postgres"] }
@@ -18,5 +18,5 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-fuel-core-client = { workspace = true, features = ["default", "dap"] }
+fuel-core-client = { workspace = true, features = ["default"] }
 derive_builder = { workspace = true }

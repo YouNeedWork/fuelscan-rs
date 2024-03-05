@@ -2,8 +2,8 @@ use anyhow::Result;
 use fuel_core_client::client::types::{block::Header, TransactionStatus};
 use fuel_core_types::fuel_tx::{
     field::{
-        BytecodeLength, BytecodeWitnessIndex, GasLimit, GasPrice, Inputs, Outputs, Script,
-        ScriptData, StorageSlots, Witnesses,
+        BytecodeLength, BytecodeWitnessIndex, GasPrice, Inputs, MaxFeeLimit, MintAmount, Outputs,
+        Script, ScriptData, StorageSlots, Witnesses,
     },
     input::coin::Coin,
     Input, Receipt,
@@ -40,8 +40,10 @@ pub async fn process(
     if let Some((tx, coinbase_tx, _)) = coinbase_pick(bodies) {
         block.coinbase_hash = Some(tx.to_string());
         if let Some(c) = coinbase_tx.clone().unwrap().transaction.as_mint() {
-            block.coinbase_amount = Some(c.outputs()[0].amount().unwrap() as i64);
-            block.coinbase = Some(c.outputs()[0].to().unwrap().to_string());
+            block.coinbase_amount = Some(*c.mint_amount() as i64);
+            //block.coinbase = Some(c.outputs()[0].to().unwrap().to_string());
+            block.coinbase = None;
+
             coinbase = Some(Coinbase {
                 id: tx.to_string(),
                 height: header.height as i64,
@@ -101,6 +103,7 @@ pub fn deploy_contract_transactions(
                     block_id: _,
                     time: _,
                     program_state: _,
+                    receipts: _,
                 } => (TxStatus::Success, "".to_string()),
                 TransactionStatus::SqueezedOut { reason: _ } => unimplemented!(),
                 TransactionStatus::Failure {
@@ -108,6 +111,7 @@ pub fn deploy_contract_transactions(
                     time: _,
                     reason,
                     program_state: _,
+                    receipts: _,
                 } => (TxStatus::Failed, reason),
             };
 
@@ -126,8 +130,8 @@ pub fn deploy_contract_transactions(
                     da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Deploy),
-                    gas_limit: *create.gas_limit() as i64,
-                    gas_price: *create.gas_price() as i64,
+                    gas_limit: create.max_fee_limit() as i64,
+                    gas_price: create.gas_price() as i64,
                     gas_used,
                     timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.clone()),
@@ -227,6 +231,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     block_id: _,
                     time: _,
                     program_state: _,
+                    receipts: _,
                 } => (TxStatus::Success, "".to_string()),
                 TransactionStatus::SqueezedOut { reason: _ } => unimplemented!(),
                 TransactionStatus::Failure {
@@ -234,6 +239,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     time: _,
                     reason,
                     program_state: _,
+                    receipts: _,
                 } => (TxStatus::Failed, reason),
             };
 
@@ -360,8 +366,8 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Call),
-                    gas_limit: *call.gas_limit() as i64,
-                    gas_price: *call.gas_price() as i64,
+                    gas_limit: call.max_fee_limit() as i64,
+                    gas_price: call.gas_price() as i64,
                     gas_used,
                     timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.to_string()),
@@ -377,8 +383,8 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     da_height: header.da_height as i64,
                     block_hash: header.id.to_string(),
                     call_type,
-                    gas_limit: *call.gas_limit() as i64,
-                    gas_price: *call.gas_price() as i64,
+                    gas_limit: call.max_fee_limit() as i64,
+                    gas_price: call.gas_price() as i64,
                     gas_used,
                     sender: sender.to_string(),
                     receiver: to,

@@ -1,7 +1,7 @@
 use fuel_core_client::client::types::block::Header;
 use fuel_core_types::{
     fuel_tx::{
-        field::{Inputs, Outputs},
+        field::{Inputs, MintAmount, MintAssetId, Outputs},
         Create, Mint, Output, Script, Transaction, UniqueIdentifier, UtxoId,
     },
     fuel_types::ChainId,
@@ -35,10 +35,11 @@ fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
                     .input_owner()
                     .expect("failed find sender with input")
                     .to_string();
-                asset.assets_id = i
-                    .asset_id()
-                    .expect("failed find asset_id with input")
-                    .to_string();
+                // TODO: asset_id is not in input
+                //                asset.assets_id = i
+                //                    .asset_id()
+                //                    .expect("failed find asset_id with input")
+                //                    .to_string();
                 asset.asset_status = AssetStatus::Delete;
                 asset.delete_tx_hash = format!("{:x}", s.id(&ChainId::new(CHAIN_ID)));
 
@@ -58,11 +59,11 @@ fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
                 || matches!(o, Output::Variable { .. })
             {
                 let mut asset = Assets::default();
-                asset.assets_id = o
-                    .asset_id()
-                    .expect("failed find asset_id with output")
-                    .to_string();
-
+                //                asset.assets_id = o
+                //                    .asset_id()
+                //                    .expect("failed find asset_id with output")
+                //                    .to_string();
+                //
                 asset.assets_utxo_id = format!(
                     "{:x}",
                     UtxoId::new(s.id(&ChainId::new(CHAIN_ID)), output_index as u8)
@@ -95,10 +96,10 @@ fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
                     .input_owner()
                     .expect("failed find sender with input")
                     .to_string();
-                asset.assets_id = i
-                    .asset_id()
-                    .expect("failed find asset_id with input")
-                    .to_string();
+                //asset.assets_id = i
+                //    .asset_id()
+                //    .expect("failed find asset_id with input")
+                //    .to_string();
 
                 asset.asset_status = AssetStatus::Delete;
                 asset.delete_tx_hash = format!("{:x}", c.id(&ChainId::new(CHAIN_ID)));
@@ -142,32 +143,19 @@ fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
 }
 
 fn handle_mint(m: &Mint) -> Option<(Vec<Assets>, Vec<Assets>)> {
-    let outputs = m.outputs();
+    //let outputs = m.outputs();
+    let mut insert_assets = vec![];
 
-    let insert_assets = outputs
-        .par_iter()
-        .enumerate()
-        .filter_map(|(output_index, o)| {
-            if o.is_coin() {
-                let mut asset = Assets::default();
-                asset.assets_id = o
-                    .asset_id()
-                    .expect("failed find asset_id with output")
-                    .to_string();
-
-                asset.assets_utxo_id = format!(
-                    "{:x}",
-                    UtxoId::new(m.id(&ChainId::new(CHAIN_ID)), output_index as u8)
-                );
-                asset.create_tx_hash = m.id(&ChainId::new(CHAIN_ID)).to_string();
-                asset.assets_owner = o.to().expect("failed find to with output").to_string();
-                asset.amount = o.amount().expect("failed find amount with output") as i64;
-                Some(asset)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
+    if *m.mint_amount() > 0 {
+        let mut asset = Assets::default();
+        asset.assets_id = m.mint_asset_id().to_string();
+        asset.assets_utxo_id = format!("{:x}", m.id(&ChainId::new(CHAIN_ID)));
+        asset.create_tx_hash = m.id(&ChainId::new(CHAIN_ID)).to_string();
+        // TODO: finish this
+        //asset.assets_owner = m;
+        asset.amount = *m.mint_amount() as i64;
+        insert_assets.push(asset);
+    }
 
     Some((vec![], insert_assets))
 }

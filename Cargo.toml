@@ -5,14 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [workspace]
-members = ["bin/fuelscan","models"]
+members = ["bin/fuelscan", "models"]
 resolver = "2"
 
 [workspace.dependencies]
 models = { path = "models" }
 tokio = { version = "1.29.1", features = ["full"] }
-fuel-core-client = { version = "0.20.4", features = ["default", "dap"] }
-fuel-core-types = { version = "0.20.4", features = ["serde"] }
+
+fuel-core-types = { version = "0.22.1", features = ["serde"] }
+fuel-core-client = { version = "0.22.1", features = ["default"] }
+
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
 async-trait = "0.1.71"
@@ -21,25 +23,25 @@ thiserror = "1.0.43"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 hex = "0.4.3"
-num_enum = "0.6.1"
+num_enum = "0.7.2"
 anyhow = "1.0.71"
 dotenv = "0.15.0"
-flume = "0.10.14"
+flume = "0.11.0"
 chrono = "*"
 rayon = "1.7.0"
 num_cpus = "1.16.0"
 
 
-diesel = { version = "2.0.3", features = [
-    "postgres",
-    "r2d2",
-    "serde_json",
-    "numeric",
-    "chrono",
+diesel = { version = "2.1.4", features = [
+  "postgres",
+  "r2d2",
+  "serde_json",
+  "numeric",
+  "chrono",
 ] }
-diesel-async = { version = "0.2.1", features = ["postgres"] }
+diesel-async = { version = "0.4.1", features = ["postgres"] }
 diesel-derive-enum = { version = "^2.0.1", features = ["postgres"] }
-derive_builder = "0.12.0"
+derive_builder = "0.20.0"
 
 
 [profile.dev]

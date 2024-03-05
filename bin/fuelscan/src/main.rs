@@ -36,9 +36,8 @@ async fn main() {
     let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
 
     let (block_handler_tx, block_handler_rx) = unbounded::<Blocks>();
-
-    let client =
-        FuelClient::from_str("http://45.125.44.100:4000").expect("failed to create client");
+    let rpc = std::env::var("RPC_URL").unwrap();
+    let client = FuelClient::from_str(&rpc).expect("failed to create client");
 
     tracing::info!(
         "chain_id: {}",

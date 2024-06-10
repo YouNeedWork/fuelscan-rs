@@ -1,6 +1,7 @@
 use fuel_core_client::client::types::{block::Header, TransactionResponse};
 use fuel_core_client::client::FuelClient;
 
+use fuel_core_types::fuel_types::BlockHeight;
 use fuel_core_types::{fuel_tx::Receipt, fuel_types::Bytes32};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
@@ -82,7 +83,7 @@ impl BlockReader {
 
     async fn fetch_block(client: &FuelClient, height: u32) -> FetchBlockResult {
         let block = match client
-            .block_by_height(height)
+            .block_by_height(height.into())
             .await
             .map_err(|e| BlockReaderError::ReadFromRpc(e.to_string()))?
         {

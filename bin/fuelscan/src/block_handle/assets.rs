@@ -66,7 +66,7 @@ fn handle_script(s: &Script) -> Option<(Vec<Assets>, Vec<Assets>)> {
                 //
                 asset.assets_utxo_id = format!(
                     "{:x}",
-                    UtxoId::new(s.id(&ChainId::new(CHAIN_ID)), output_index as u8)
+                    UtxoId::new(s.id(&ChainId::new(CHAIN_ID)), (output_index as u8).into())
                 );
 
                 asset.assets_owner = o.to().expect("failed find to with output").to_string();
@@ -127,7 +127,7 @@ fn handle_create(c: &Create) -> Option<(Vec<Assets>, Vec<Assets>)> {
 
                 asset.assets_utxo_id = format!(
                     "{:x}",
-                    UtxoId::new(c.id(&ChainId::new(CHAIN_ID)), output_index as u8)
+                    UtxoId::new(c.id(&ChainId::new(CHAIN_ID)), (output_index as u8).into())
                 );
                 asset.create_tx_hash = c.id(&ChainId::new(CHAIN_ID)).to_string();
                 asset.assets_owner = o.to().expect("failed find to with output").to_string();
@@ -168,6 +168,8 @@ pub fn assets_process(header: &Header, bodies: &BlockBodies) -> (Vec<Assets>, Ve
                 Transaction::Script(s) => handle_script(s),
                 Transaction::Create(c) => handle_create(c),
                 Transaction::Mint(m) => handle_mint(m),
+                Transaction::Upload(_) => None,
+                Transaction::Upgrade(_) => None,
             })
         })
         .collect::<Vec<(Vec<Assets>, Vec<Assets>)>>();

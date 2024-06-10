@@ -57,7 +57,7 @@ async fn main() {
             .await
             .expect("failed to fetch chain_info")
             .consensus_parameters
-            .chain_id
+            .chain_id()
     );
 
     let mut block_read = BlockReader::new(50, client, block_handler_tx);

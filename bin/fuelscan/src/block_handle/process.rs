@@ -2,8 +2,8 @@ use anyhow::Result;
 use fuel_core_client::client::types::{block::Header, TransactionStatus};
 use fuel_core_types::fuel_tx::{
     field::{
-        BytecodeLength, BytecodeWitnessIndex, GasPrice, Inputs, MaxFeeLimit, MintAmount, Outputs,
-        Script, ScriptData, StorageSlots, Witnesses,
+        BytecodeWitnessIndex, Inputs, MaxFeeLimit, MintAmount, MintGasPrice, Outputs, Script,
+        ScriptData, StorageSlots, Witnesses,
     },
     input::coin::Coin,
     Input, Receipt,
@@ -100,18 +100,22 @@ pub fn deploy_contract_transactions(
             let (status, reason) = match tx.clone().unwrap().status {
                 TransactionStatus::Submitted { submitted_at: _ } => unreachable!(),
                 TransactionStatus::Success {
-                    block_id: _,
                     time: _,
                     program_state: _,
                     receipts: _,
+                    block_height: _,
+                    total_gas: _,
+                    total_fee: _,
                 } => (TxStatus::Success, "".to_string()),
                 TransactionStatus::SqueezedOut { reason: _ } => unimplemented!(),
                 TransactionStatus::Failure {
-                    block_id: _,
+                    block_height: _,
                     time: _,
                     reason,
                     program_state: _,
                     receipts: _,
+                    total_gas: _,
+                    total_fee: _,
                 } => (TxStatus::Failed, reason),
             };
 
@@ -131,7 +135,7 @@ pub fn deploy_contract_transactions(
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Deploy),
                     gas_limit: create.max_fee_limit() as i64,
-                    gas_price: create.gas_price() as i64,
+                    gas_price: 0,
                     gas_used,
                     timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.clone()),
@@ -151,7 +155,7 @@ pub fn deploy_contract_transactions(
                             .get(*create.bytecode_witness_index() as usize)
                             .expect("get bytecode: unreachable"),
                     ),
-                    bytecoin_length: *create.bytecode_length() as i64,
+                    bytecoin_length: *create.bytecode_witness_index() as i64,
                     storage_slots: serde_json::to_value(create.storage_slots()).ok(),
                     timestamp: header.time.clone().to_unix(),
                 },
@@ -228,18 +232,22 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
             let (status, reason) = match tx.clone().unwrap().status {
                 TransactionStatus::Submitted { submitted_at: _ } => unreachable!(),
                 TransactionStatus::Success {
-                    block_id: _,
                     time: _,
                     program_state: _,
                     receipts: _,
+                    block_height,
+                    total_gas,
+                    total_fee,
                 } => (TxStatus::Success, "".to_string()),
                 TransactionStatus::SqueezedOut { reason: _ } => unimplemented!(),
                 TransactionStatus::Failure {
-                    block_id: _,
                     time: _,
                     reason,
                     program_state: _,
                     receipts: _,
+                    block_height,
+                    total_gas,
+                    total_fee,
                 } => (TxStatus::Failed, reason),
             };
 
@@ -367,7 +375,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     block_hash: header.id.to_string(),
                     tx_type: Some(TxType::Call),
                     gas_limit: call.max_fee_limit() as i64,
-                    gas_price: call.gas_price() as i64,
+                    gas_price: 0,
                     gas_used,
                     timestamp: header.time.clone().to_unix(),
                     sender: Some(sender.to_string()),
@@ -384,7 +392,7 @@ pub fn calls_transactions(header: &Header, bodies: &BlockBodies) -> Vec<(Transac
                     block_hash: header.id.to_string(),
                     call_type,
                     gas_limit: call.max_fee_limit() as i64,
-                    gas_price: call.gas_price() as i64,
+                    gas_price: 0,
                     gas_used,
                     sender: sender.to_string(),
                     receiver: to,

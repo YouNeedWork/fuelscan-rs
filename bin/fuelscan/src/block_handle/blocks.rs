@@ -7,7 +7,7 @@ pub fn init_block_by_with_header(header: &Header) -> Block {
         height: header.height as i64,
         da_height: header.da_height as i64,
         application_hash: header.application_hash.to_string(),
-        output_messages_root_hash: header.message_receipt_root.to_string(),
+        output_messages_root_hash: header.message_outbox_root.to_string(),
         transactions_root: header.transactions_root.to_string(),
         prev_root: header.prev_root.to_string(),
         coinbase: None,

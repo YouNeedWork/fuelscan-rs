@@ -12,8 +12,8 @@ resolver = "2"
 models = { path = "models" }
 tokio = { version = "1.29.1", features = ["full"] }
 
-fuel-core-types = { version = "0.28.0", features = ["serde"] }
-fuel-core-client = { version = "0.28.0", features = ["default"] }
+fuel-core-types = { version = "0.26.0", features = ["serde"] }
+fuel-core-client = { version = "0.26.0", features = ["default"] }
 
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
